@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { alertManagersOnNonCompliantTemp } from "@/lib/services/notification-service";
 
 export async function getTodaysInstances(locationId: string, organizationId: string) {
   const today = new Date();
@@ -217,7 +218,7 @@ async function createCorrectiveAction(
     select: { id: true },
   });
 
-  await prisma.correctiveAction.create({
+  const ca = await prisma.correctiveAction.create({
     data: {
       title: `${task.title} — Non-Compliant`,
       description: `Recorded ${actualValue}, expected ${targetValue || "compliant value"}`,
@@ -232,6 +233,24 @@ async function createCorrectiveAction(
       dueDate,
     },
   });
+
+  if (task.taskType === "TEMPERATURE") {
+    const location = await prisma.location.findFirst({
+      where: { id: instance.locationId },
+      select: { name: true, organizationId: true },
+    });
+    if (location) {
+      alertManagersOnNonCompliantTemp(
+        instance.locationId,
+        location.organizationId,
+        task.title,
+        actualValue,
+        validRange,
+        location.name,
+        `/checklists/corrective-actions`
+      ).catch(() => {});
+    }
+  }
 }
 
 export async function getBookDashboard(organizationId: string, locationId?: string) {
