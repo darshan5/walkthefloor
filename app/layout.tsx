@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { ServiceWorkerRegister } from "@/components/layout/sw-register";
+import { OfflineIndicator } from "@/components/layout/offline-indicator";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,6 +43,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster position="top-right" richColors />
+        <ServiceWorkerRegister />
+        <OfflineIndicator />
       </body>
     </html>
   );
