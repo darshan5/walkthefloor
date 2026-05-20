@@ -1,10 +1,463 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, MapPin, Copy } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type LocationSummary = {
+  id: string;
+  name: string;
+  storeNumber: string | null;
+  isActive: boolean;
+  _count: { locationEquipment: number; homeUsers: number };
+};
+
+type LocationDetail = {
+  id: string;
+  name: string;
+  storeNumber: string | null;
+  address: string | null;
+  timezone: string;
+  complianceStartDate: string | null;
+  isActive: boolean;
+  locationEquipment: {
+    id: string;
+    instanceName: string;
+    sortOrder: number;
+    equipmentType: { id: string; name: string; category: string | null };
+  }[];
+};
+
+type EquipmentType = {
+  id: string;
+  name: string;
+  category: string | null;
+};
+
 export default function LocationsPage() {
+  const [locations, setLocations] = useState<LocationSummary[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<LocationDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newStore, setNewStore] = useState("");
+  const [newTimezone, setNewTimezone] = useState("America/New_York");
+  const [saving, setSaving] = useState(false);
+  const [equipTypes, setEquipTypes] = useState<EquipmentType[]>([]);
+  const [addEquipOpen, setAddEquipOpen] = useState(false);
+  const [addEquipTypeId, setAddEquipTypeId] = useState("");
+  const [addEquipName, setAddEquipName] = useState("");
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloneSourceId, setCloneSourceId] = useState("");
+
+  async function fetchLocations() {
+    const res = await fetch("/api/v1/locations");
+    if (res.ok) {
+      const { data } = await res.json();
+      setLocations(data);
+      if (!selectedId && data.length > 0) setSelectedId(data[0].id);
+    }
+    setLoading(false);
+  }
+
+  async function fetchDetail(id: string) {
+    const res = await fetch(`/api/v1/locations/${id}`);
+    if (res.ok) {
+      const { data } = await res.json();
+      setDetail(data);
+    }
+  }
+
+  async function fetchEquipTypes() {
+    const res = await fetch("/api/v1/equipment-types");
+    if (res.ok) {
+      const { data } = await res.json();
+      setEquipTypes(data);
+    }
+  }
+
+  useEffect(() => {
+    fetchLocations();
+    fetchEquipTypes();
+  }, []);
+
+  useEffect(() => {
+    if (selectedId) fetchDetail(selectedId);
+  }, [selectedId]);
+
+  async function handleCreateLocation() {
+    setSaving(true);
+    const res = await fetch("/api/v1/locations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName, storeNumber: newStore || undefined, timezone: newTimezone }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      toast.success("Location created");
+      setCreateOpen(false);
+      setNewName("");
+      setNewStore("");
+      const { data } = await res.json();
+      fetchLocations();
+      setSelectedId(data.id);
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleAddEquipment() {
+    if (!selectedId) return;
+    setSaving(true);
+    const res = await fetch(`/api/v1/locations/${selectedId}/equipment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ equipmentTypeId: addEquipTypeId, instanceName: addEquipName }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      toast.success("Equipment added");
+      setAddEquipOpen(false);
+      setAddEquipTypeId("");
+      setAddEquipName("");
+      fetchDetail(selectedId);
+      fetchLocations();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleRemoveEquipment(equipmentId: string) {
+    if (!selectedId || !confirm("Remove this equipment?")) return;
+    const res = await fetch(`/api/v1/locations/${selectedId}/equipment/${equipmentId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      toast.success("Equipment removed");
+      fetchDetail(selectedId);
+      fetchLocations();
+    }
+  }
+
+  async function handleClone() {
+    if (!selectedId) return;
+    setSaving(true);
+    const res = await fetch(`/api/v1/locations/${selectedId}/clone-config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceLocationId: cloneSourceId }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      const { data } = await res.json();
+      toast.success(`Cloned ${data.clonedEquipment} equipment, ${data.clonedConfigs} configs`);
+      setCloneOpen(false);
+      fetchDetail(selectedId);
+      fetchLocations();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  const selectedType = equipTypes.find((t) => t.id === addEquipTypeId);
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Locations</h1>
-      <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-        Coming soon
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Locations</h1>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add Location
+        </Button>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+        {/* Left: Location list */}
+        <Card>
+          <ScrollArea className="h-[calc(100vh-12rem)]">
+            <div className="p-2 space-y-1">
+              {loading ? (
+                <p className="p-4 text-sm text-muted-foreground">Loading...</p>
+              ) : locations.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">No locations</p>
+              ) : (
+                locations.map((loc) => (
+                  <button
+                    key={loc.id}
+                    onClick={() => setSelectedId(loc.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                      selectedId === loc.id && "bg-accent font-medium"
+                    )}
+                  >
+                    <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{loc.name}</div>
+                      {loc.storeNumber && (
+                        <div className="text-xs text-muted-foreground">#{loc.storeNumber}</div>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {loc._count.locationEquipment}
+                    </Badge>
+                  </button>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </Card>
+
+        {/* Right: Detail panel */}
+        {detail ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>{detail.name}</CardTitle>
+                  {detail.storeNumber && (
+                    <p className="text-sm text-muted-foreground">Store #{detail.storeNumber}</p>
+                  )}
+                </div>
+                <Badge variant={detail.isActive ? "default" : "outline"}>
+                  {detail.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="location">
+                <TabsList>
+                  <TabsTrigger value="location">Location</TabsTrigger>
+                  <TabsTrigger value="book">
+                    Book ({detail.locationEquipment.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="location" className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Address</label>
+                      <p className="text-sm">{detail.address || "Not set"}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Timezone</label>
+                      <p className="text-sm">{detail.timezone}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Compliance Start</label>
+                      <p className="text-sm">
+                        {detail.complianceStartDate
+                          ? new Date(detail.complianceStartDate).toLocaleDateString()
+                          : "Not set"}
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="book" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {detail.locationEquipment.length} equipment assigned
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setCloneOpen(true)} className="gap-1">
+                        <Copy className="h-3.5 w-3.5" />
+                        Clone
+                      </Button>
+                      <Button size="sm" onClick={() => setAddEquipOpen(true)} className="gap-1">
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Equipment
+                      </Button>
+                    </div>
+                  </div>
+
+                  {detail.locationEquipment.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                      No equipment assigned. Add equipment or clone from another location.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Equipment Type</TableHead>
+                          <TableHead>Instance Name</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className="w-16" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.locationEquipment.map((eq) => (
+                          <TableRow key={eq.id}>
+                            <TableCell className="font-medium">{eq.equipmentType.name}</TableCell>
+                            <TableCell>{eq.instanceName}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {eq.equipmentType.category || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveEquipment(eq.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12 text-muted-foreground">
+              Select a location to view details
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Create Location Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input placeholder="e.g., Main" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Store Number</label>
+              <Input placeholder="e.g., 001" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Timezone</label>
+              <Input value={newTimezone} onChange={(e) => setNewTimezone(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={handleCreateLocation} disabled={saving || !newName.trim()}>
+              {saving ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Equipment Dialog */}
+      <Dialog open={addEquipOpen} onOpenChange={setAddEquipOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Equipment to {detail?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Equipment Type</label>
+              <Select value={addEquipTypeId} onValueChange={(v: any) => {
+                if (!v) return;
+                setAddEquipTypeId(v);
+                const t = equipTypes.find((t) => t.id === v);
+                if (t) setAddEquipName(`${t.name} 1`);
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  {equipTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} {t.category && `(${t.category})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Instance Name</label>
+              <Input
+                placeholder="e.g., Walkin Freezer 1"
+                value={addEquipName}
+                onChange={(e) => setAddEquipName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={handleAddEquipment} disabled={saving || !addEquipTypeId || !addEquipName.trim()}>
+              {saving ? "Adding..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clone Config Dialog */}
+      <Dialog open={cloneOpen} onOpenChange={setCloneOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clone Configuration to {detail?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will copy all equipment and template window overrides from the source location.
+            Existing equipment at this location will be deactivated.
+          </p>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium">Source Location</label>
+            <Select value={cloneSourceId} onValueChange={(v: any) => v && setCloneSourceId(v)}>
+              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+              <SelectContent>
+                {locations
+                  .filter((l) => l.id !== selectedId)
+                  .map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name} ({l._count.locationEquipment} equipment)
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={handleClone} disabled={saving || !cloneSourceId}>
+              {saving ? "Cloning..." : "Clone"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
