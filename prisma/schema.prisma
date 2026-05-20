@@ -1,0 +1,869 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── MULTI-TENANCY ──────────────────────────────────
+
+model Organization {
+  id             String     @id @default(cuid())
+  name           String
+  slug           String     @unique
+  settings       Json       @default("{}")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  regions        Region[]
+  locations      Location[]
+  users          User[]
+  roles          Role[]
+  shifts         Shift[]
+  equipmentTypes EquipmentType[]
+  documents      Document[]
+}
+
+model Region {
+  id             String       @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  locations      Location[]
+
+  @@index([organizationId])
+}
+
+model Shift {
+  id             String       @id @default(cuid())
+  name           String
+  startTime      String
+  endTime        String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+}
+
+model Location {
+  id                  String                   @id @default(cuid())
+  name                String
+  storeNumber         String?
+  address             String?
+  latitude            Float?
+  longitude           Float?
+  geoFenceRadius      Int?
+  timezone            String                   @default("America/New_York")
+  operatingHours      Json?
+  complianceStartDate DateTime?
+  isActive            Boolean                  @default(true)
+  organizationId      String
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  regionId            String?
+  region              Region?                  @relation(fields: [regionId], references: [id])
+  userLocations       UserLocation[]
+  homeUsers           User[]                   @relation("HomeLocation")
+  locationEquipment   LocationEquipment[]
+  templateConfigs     LocationTemplateConfig[]
+  checklistInstances  ChecklistInstance[]
+  correctiveActions   CorrectiveAction[]
+  temperatureLogs     TemperatureLog[]
+  auditInstances      AuditInstance[]
+  workOrders          WorkOrder[]
+  complaints          Complaint[]
+
+  @@index([organizationId])
+}
+
+model LocationTemplateConfig {
+  id              String            @id @default(cuid())
+  locationId      String
+  location        Location          @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  templateId      String
+  template        ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  windowOverrides Json              @default("[]")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([locationId, templateId])
+  @@index([locationId])
+}
+
+// ── USERS & AUTH ───────────────────────────────────
+
+model User {
+  id             String       @id @default(cuid())
+  email          String?      @unique
+  hashedPassword String?
+  pin            String?
+  name           String
+  title          String?
+  userType       String       @default("full")
+  isActive       Boolean      @default(true)
+  isConfirmed    Boolean      @default(false)
+  lastLoginAt    DateTime?
+  hireDate       DateTime?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id])
+  managerId      String?
+  manager        User?        @relation("ManagerReports", fields: [managerId], references: [id])
+  directReports  User[]       @relation("ManagerReports")
+  homeLocationId String?
+  homeLocation   Location?    @relation("HomeLocation", fields: [homeLocationId], references: [id])
+  userLocations  UserLocation[]
+  appAccess      Json         @default("[]")
+  completions        TaskCompletion[]
+  assignedCAs        CorrectiveAction[] @relation("CAAssignee")
+  createdCAs         CorrectiveAction[] @relation("CACreator")
+  temperatureLogs    TemperatureLog[]
+  auditCompletions   AuditResponse[]
+  workOrdersAssigned WorkOrder[]        @relation("WOAssignee")
+  workOrdersCreated  WorkOrder[]        @relation("WOCreator")
+  workOrdersApproved WorkOrder[]        @relation("WOApprover")
+  complaintsAssigned Complaint[]        @relation("ComplaintAssignee")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([pin, organizationId])
+  @@index([managerId])
+}
+
+model UserLocation {
+  userId     String
+  locationId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, locationId])
+}
+
+model Role {
+  id             String       @id @default(cuid())
+  name           String
+  permissions    Json
+  isBuiltIn      Boolean      @default(false)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          User[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+}
+
+model RegisteredDevice {
+  id          String    @id @default(cuid())
+  name        String
+  deviceToken String    @unique
+  locationId  String
+  make        String?
+  osVersion   String?
+  isActive    Boolean   @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ── EQUIPMENT ──────────────────────────────────────
+
+model EquipmentType {
+  id                String              @id @default(cuid())
+  name              String
+  category          String?
+  organizationId    String
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  locationEquipment LocationEquipment[]
+  checklistTasks    ChecklistTask[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+}
+
+model LocationEquipment {
+  id              String        @id @default(cuid())
+  locationId      String
+  location        Location      @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  equipmentTypeId String
+  equipmentType   EquipmentType @relation(fields: [equipmentTypeId], references: [id], onDelete: Cascade)
+  instanceName    String
+  sortOrder       Int           @default(0)
+  isActive        Boolean       @default(true)
+  model           String?
+  serialNumber    String?
+  installDate     DateTime?
+  warrantyExpiry  DateTime?
+  workOrders      WorkOrder[]
+  createdAt       DateTime      @default(now())
+
+  @@index([locationId])
+  @@index([equipmentTypeId])
+}
+
+// ── MODULE 1: CHECKLISTS & FOOD SAFETY ─────────────
+
+model ChecklistTemplate {
+  id                 String                   @id @default(cuid())
+  name               String
+  description        String?
+  category           String?
+  isBuiltIn          Boolean                  @default(false)
+  isCustom           Boolean                  @default(false)
+  schedule           Json
+  isActive           Boolean                  @default(true)
+  version            Int                      @default(1)
+  organizationId     String
+  tasks              ChecklistTask[]
+  instances          ChecklistInstance[]
+  locationConfigs    LocationTemplateConfig[]
+  complianceFailures ComplianceFailure[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([organizationId])
+  @@index([category])
+}
+
+model ChecklistTask {
+  id                String            @id @default(cuid())
+  templateId        String
+  template          ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  equipmentTypeId   String?
+  equipmentType     EquipmentType?    @relation(fields: [equipmentTypeId], references: [id])
+  title             String
+  description       String?
+  taskType          TaskType
+  config            Json              @default("{}")
+  scheduledTime     String?
+  sortOrder         Int
+  isRequired        Boolean           @default(true)
+  isCritical        Boolean           @default(false)
+  requiresPhoto     Boolean           @default(false)
+  requiresSignature Boolean           @default(false)
+  helpText          String?
+  completions       TaskCompletion[]
+
+  @@index([templateId])
+  @@index([equipmentTypeId])
+}
+
+enum TaskType {
+  YES_NO
+  TEMPERATURE
+  NUMERIC
+  TEXT
+  SELECT
+  MULTI_SELECT
+  PHOTO_ONLY
+  SIGNATURE_ONLY
+}
+
+model ChecklistInstance {
+  id                String             @id @default(cuid())
+  templateId        String
+  template          ChecklistTemplate  @relation(fields: [templateId], references: [id])
+  locationId        String
+  location          Location           @relation(fields: [locationId], references: [id])
+  date              DateTime           @db.Date
+  windowLabel       String?
+  windowStart       DateTime?
+  windowEnd         DateTime?
+  status            InstanceStatus     @default(PENDING)
+  isCompliant       Boolean?
+  completedAt       DateTime?
+  completions       TaskCompletion[]
+  complianceFailure ComplianceFailure?
+  createdAt         DateTime           @default(now())
+
+  @@unique([templateId, locationId, date, windowLabel])
+  @@index([locationId, date])
+  @@index([status])
+}
+
+enum InstanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+  COMPLETED_LATE
+}
+
+model ComplianceFailure {
+  id            String            @id @default(cuid())
+  instanceId    String            @unique
+  instance      ChecklistInstance @relation(fields: [instanceId], references: [id])
+  templateId    String
+  template      ChecklistTemplate @relation(fields: [templateId], references: [id])
+  locationId    String
+  userId        String?
+  windowLabel   String?
+  windowStart   DateTime?
+  windowEnd     DateTime?
+  explanation   String?           @db.Text
+  explainedAt   DateTime?
+  explainedById String?
+  status        String            @default("unexcused")
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNotes   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([locationId, createdAt])
+  @@index([userId])
+  @@index([status])
+}
+
+model TaskCompletion {
+  id                  String            @id @default(cuid())
+  instanceId          String
+  instance            ChecklistInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  taskId              String
+  task                ChecklistTask     @relation(fields: [taskId], references: [id])
+  userId              String
+  user                User              @relation(fields: [userId], references: [id])
+  locationEquipmentId String?
+  value               Json
+  isCompliant         Boolean
+  photoUrls           Json              @default("[]")
+  signatureUrl        String?
+  notes               String?
+  completedAt         DateTime          @default(now())
+  correctiveAction    CorrectiveAction?
+
+  @@index([instanceId])
+}
+
+model CorrectiveAction {
+  id              String          @id @default(cuid())
+  title           String
+  description     String?
+  priority        Priority        @default(MEDIUM)
+  status          CAStatus        @default(OPEN)
+  dueDate         DateTime?
+  locationId      String
+  location        Location        @relation(fields: [locationId], references: [id])
+  assigneeId      String?
+  assignee        User?           @relation("CAAssignee", fields: [assigneeId], references: [id])
+  createdById     String
+  createdBy       User            @relation("CACreator", fields: [createdById], references: [id])
+  completionId    String?         @unique
+  completion      TaskCompletion? @relation(fields: [completionId], references: [id])
+  auditResponseId String?
+  actualValue     String?
+  targetValue     String?
+  validRange      String?
+  photoUrls       Json            @default("[]")
+  resolvedAt      DateTime?
+  resolvedNotes   String?
+  comments        CAComment[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([locationId, status])
+  @@index([assigneeId])
+}
+
+model CAComment {
+  id                 String           @id @default(cuid())
+  correctiveActionId String
+  correctiveAction   CorrectiveAction @relation(fields: [correctiveActionId], references: [id], onDelete: Cascade)
+  userId             String
+  content            String
+  statusChange       String?
+  createdAt          DateTime         @default(now())
+
+  @@index([correctiveActionId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CAStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  OVERDUE
+}
+
+model TemperatureLog {
+  id            String   @id @default(cuid())
+  locationId    String
+  location      Location @relation(fields: [locationId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  equipmentName String
+  temperature   Float
+  unit          String   @default("F")
+  isCompliant   Boolean
+  source        String   @default("manual")
+  notes         String?
+  recordedAt    DateTime @default(now())
+
+  @@index([locationId, recordedAt])
+}
+
+// ── DOCUMENTS & SOPs ───────────────────────────────
+
+model Document {
+  id             String       @id @default(cuid())
+  title          String
+  category       String
+  content        String?      @db.Text
+  fileUrl        String?
+  version        Int          @default(1)
+  isPublished    Boolean      @default(false)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, category])
+}
+
+// ── MODULE 2: AUDIT MANAGEMENT ─────────────────────
+
+model AuditTemplate {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  sections       Json
+  auditType      String          @default("standard")
+  schedule       Json?
+  scoringMethod  String          @default("percentage")
+  geoFenceRadius Int?
+  isActive       Boolean         @default(true)
+  organizationId String
+  questions      AuditQuestion[]
+  instances      AuditInstance[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId])
+}
+
+model AuditQuestion {
+  id            String          @id @default(cuid())
+  templateId    String
+  template      AuditTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  text          String
+  questionType  String
+  config        Json            @default("{}")
+  isRequired    Boolean         @default(true)
+  requiresPhoto Boolean         @default(false)
+  sortOrder     Int
+  responses     AuditResponse[]
+
+  @@index([templateId])
+}
+
+model AuditInstance {
+  id            String          @id @default(cuid())
+  templateId    String
+  template      AuditTemplate   @relation(fields: [templateId], references: [id])
+  locationId    String
+  location      Location        @relation(fields: [locationId], references: [id])
+  status        String          @default("scheduled")
+  score         Float?
+  duration      Int?
+  scheduledDate DateTime
+  completedAt   DateTime?
+  validatedById String?
+  responses     AuditResponse[]
+  createdAt     DateTime        @default(now())
+
+  @@index([locationId, scheduledDate])
+}
+
+model AuditResponse {
+  id          String        @id @default(cuid())
+  instanceId  String
+  instance    AuditInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    AuditQuestion @relation(fields: [questionId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  value       Json
+  isCompliant Boolean?
+  photoUrls   Json          @default("[]")
+  notes       String?
+  respondedAt DateTime      @default(now())
+
+  @@index([instanceId])
+}
+
+// ── MODULE 3: FACILITIES MAINTENANCE ───────────────
+
+model Vendor {
+  id             String      @id @default(cuid())
+  name           String
+  contactName    String?
+  email          String?
+  phone          String?
+  specialty      String?
+  notes          String?
+  isActive       Boolean     @default(true)
+  organizationId String
+  workOrders     WorkOrder[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([organizationId])
+}
+
+model WorkOrder {
+  id             String             @id @default(cuid())
+  title          String
+  description    String?
+  priority       Priority           @default(MEDIUM)
+  status         String             @default("submitted")
+  locationId     String
+  location       Location           @relation(fields: [locationId], references: [id])
+  equipmentId    String?
+  equipment      LocationEquipment? @relation(fields: [equipmentId], references: [id])
+  createdById    String
+  createdBy      User               @relation("WOCreator", fields: [createdById], references: [id])
+  approvedById   String?
+  approvedBy     User?              @relation("WOApprover", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  rejectionNotes String?
+  vendorId       String?
+  vendor         Vendor?            @relation(fields: [vendorId], references: [id])
+  assigneeId     String?
+  assignee       User?              @relation("WOAssignee", fields: [assigneeId], references: [id])
+  estimatedCost  Float?
+  actualCost     Float?
+  expenseNotes   String?
+  invoiceUrl     String?
+  photoUrls      Json               @default("[]")
+  dueDate        DateTime?
+  completedAt    DateTime?
+  comments       WorkOrderComment[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([locationId, status])
+  @@index([vendorId])
+}
+
+model WorkOrderComment {
+  id           String    @id @default(cuid())
+  workOrderId  String
+  workOrder    WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId       String
+  content      String
+  statusChange String?
+  createdAt    DateTime  @default(now())
+
+  @@index([workOrderId])
+}
+
+// ── MODULE 4: GUEST SERVICE ────────────────────────
+
+model Complaint {
+  id               String             @id @default(cuid())
+  caseNumber       String             @unique @default(cuid())
+  subject          String
+  description      String             @db.Text
+  source           String             @default("webhook")
+  priority         Priority           @default(MEDIUM)
+  status           String             @default("new")
+  isEscalated      Boolean            @default(false)
+  isFyi            Boolean            @default(false)
+  guestName        String?
+  guestEmail       String?
+  guestPhone       String?
+  locationId       String
+  location         Location           @relation(fields: [locationId], references: [id])
+  assigneeId       String?
+  assignee         User?              @relation("ComplaintAssignee", fields: [assigneeId], references: [id])
+  actionPlan       String?            @db.Text
+  resolution       String?            @db.Text
+  resolvedById     String?
+  resolvedAt       DateTime?
+  responseDeadline DateTime?
+  firstResponseAt  DateTime?
+  messages         ComplaintMessage[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([locationId, status])
+  @@index([assigneeId])
+}
+
+model ComplaintMessage {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  direction   String
+  channel     String
+  content     String    @db.Text
+  sentById    String?
+  createdAt   DateTime  @default(now())
+}
+
+// ── SAAS PLATFORM LAYER ────────────────────────────
+
+model SaasAdmin {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  hashedPassword String
+  name           String
+  role           String    @default("ADMIN")
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Plan {
+  id                 String         @id @default(cuid())
+  name               String
+  slug               String         @unique
+  stripePriceMonthly String?
+  stripePriceAnnual  String?
+  priceMonthly       Float
+  priceAnnual        Float
+  features           Json
+  limits             Json
+  isPopular          Boolean        @default(false)
+  sortOrder          Int            @default(0)
+  isActive           Boolean        @default(true)
+  subscriptions      Subscription[]
+  createdAt          DateTime       @default(now())
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  stripeSubscriptionId String?            @unique
+  stripeCustomerId     String?
+  status               SubscriptionStatus @default(TRIALING)
+  billingInterval      String             @default("monthly")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  trialEndsAt          DateTime?
+  canceledAt           DateTime?
+  suspendedAt          DateTime?
+  provisionedManually  Boolean            @default(false)
+  provisionedById      String?
+  payments             Payment[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+  PAUSED
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  subscriptionId  String
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id])
+  stripeInvoiceId String?      @unique
+  amount          Float
+  currency        String       @default("usd")
+  status          String       @default("pending")
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+}
+
+model DiscountCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  percentOff   Int
+  type         String
+  billingScope String    @default("both")
+  startsAt     DateTime
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  maxUses      Int?
+  currentUses  Int       @default(0)
+  createdAt    DateTime  @default(now())
+}
+
+// ── WEBHOOKS & API KEYS ────────────────────────────
+
+model WebhookEndpoint {
+  id             String         @id @default(cuid())
+  organizationId String
+  channel        String
+  secret         String
+  isActive       Boolean        @default(true)
+  lastReceivedAt DateTime?
+  createdAt      DateTime       @default(now())
+  events         WebhookEvent[]
+
+  @@unique([organizationId, channel])
+  @@index([organizationId])
+}
+
+model WebhookEvent {
+  id         String           @id @default(cuid())
+  endpointId String?
+  endpoint   WebhookEndpoint? @relation(fields: [endpointId], references: [id])
+  source     String
+  eventType  String
+  externalId String?
+  payload    Json
+  processed  Boolean          @default(false)
+  error      String?          @db.Text
+  createdAt  DateTime         @default(now())
+
+  @@index([endpointId])
+  @@index([source, eventType])
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  keyHash        String    @unique
+  keyPrefix      String
+  scopes         Json
+  locationIds    Json      @default("[]")
+  rateLimit      Int       @default(1000)
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([keyHash])
+}
+
+model SalesData {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  locationId         String
+  date               DateTime @db.Date
+  totalAmount        Float
+  transactionCount   Int      @default(0)
+  checkAverage       Float?
+  channelSplit       Json     @default("{}")
+  previousYearAmount Float?
+  previousYearCount  Int?
+  metadata           Json     @default("{}")
+  webhookEventId     String?
+  createdAt          DateTime @default(now())
+
+  @@unique([organizationId, locationId, date])
+  @@index([organizationId, locationId, date])
+}
+
+// ── SUPPORT & KNOWLEDGE BASE ───────────────────────
+
+model SupportTicket {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  userId            String
+  subject           String
+  category          String                 @default("other")
+  status            String                 @default("open")
+  priority          String                 @default("medium")
+  lastViewedByAdmin DateTime?
+  lastViewedByUser  DateTime?
+  messages          SupportTicketMessage[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model SupportTicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String
+  body      String        @db.Text
+  isStaff   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+}
+
+model KnowledgeBaseArticle {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  summary     String
+  body        String   @db.Text
+  category    String
+  tags        Json     @default("[]")
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+// ── AUDIT LOG & SYSTEM ─────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  targetOrgId  String?
+  targetUserId String?
+  adminId      String
+  metadata     Json     @default("{}")
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([adminId])
+  @@index([targetOrgId])
+}
+
+model SystemSettings {
+  id                 String   @id @default("system")
+  disableLogin       Boolean  @default(false)
+  whitelistedDomains Json     @default("[]")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model BrandTemplate {
+  id               String   @id @default(cuid())
+  brandName        String
+  name             String
+  description      String?
+  category         String?
+  templateData     Json
+  isActive         Boolean  @default(true)
+  createdById      String?
+  sourceOrgId      String?
+  sourceTemplateId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([brandName])
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  type           String
+  title          String
+  body           String?
+  link           String?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([organizationId])
+}
