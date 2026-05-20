@@ -23,8 +23,8 @@ type Instance = {
 };
 
 type Dashboard = {
-  today: { total: number; completed: number; missed: number; inProgress: number; pending: number };
-  openCAs: number;
+  checklists: { total: number; completed: number; missed: number; pending: number };
+  correctiveActions: { open: number; overdue: number };
 };
 
 export default function ChecklistsPage() {
@@ -64,28 +64,28 @@ export default function ChecklistsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Today's Checklists"
-            value={`${dashboard.today.completed} / ${dashboard.today.total}`}
-            subtitle={dashboard.today.pending > 0 ? `${dashboard.today.pending} pending` : "All done"}
+            value={`${dashboard.checklists.completed} / ${dashboard.checklists.total}`}
+            subtitle={dashboard.checklists.pending > 0 ? `${dashboard.checklists.pending} pending` : "All done"}
             icon={ClipboardCheck}
-            variant={dashboard.today.pending === 0 && dashboard.today.total > 0 ? "success" : "default"}
+            variant={dashboard.checklists.pending === 0 && dashboard.checklists.total > 0 ? "success" : "default"}
           />
           <StatsCard
             title="In Progress"
-            value={dashboard.today.inProgress}
+            value={0}
             icon={Clock}
-            variant={dashboard.today.inProgress > 0 ? "warning" : "default"}
+            variant={0 > 0 ? "warning" : "default"}
           />
           <StatsCard
             title="Missed"
-            value={dashboard.today.missed}
+            value={dashboard.checklists.missed}
             icon={XCircle}
-            variant={dashboard.today.missed > 0 ? "danger" : "success"}
+            variant={dashboard.checklists.missed > 0 ? "danger" : "success"}
           />
           <StatsCard
             title="Open CAs"
-            value={dashboard.openCAs}
+            value={dashboard.correctiveActions.open}
             icon={AlertTriangle}
-            variant={dashboard.openCAs > 0 ? "warning" : "success"}
+            variant={dashboard.correctiveActions.open > 0 ? "warning" : "success"}
           />
         </div>
       )}
