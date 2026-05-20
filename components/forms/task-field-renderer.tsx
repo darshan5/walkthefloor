@@ -1,0 +1,238 @@
+"use client";
+
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Camera, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Task = {
+  id: string;
+  title: string;
+  taskType: string;
+  config: any;
+  equipmentType: { id: string; name: string } | null;
+  isRequired: boolean;
+  isCritical: boolean;
+  requiresPhoto: boolean;
+  helpText: string | null;
+};
+
+type Completion = {
+  id: string;
+  taskId: string;
+  value: any;
+  isCompliant: boolean;
+  completedAt: string;
+};
+
+type TaskFieldRendererProps = {
+  task: Task;
+  completion?: Completion;
+  onComplete: (taskId: string, value: any) => Promise<void>;
+  saving?: boolean;
+};
+
+export function TaskFieldRenderer({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const isCompleted = !!completion;
+  const isNonCompliant = completion && !completion.isCompliant;
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-4 transition-colors",
+        isNonCompliant && "border-red-200 bg-red-50/50",
+        isCompleted && completion.isCompliant && "border-green-200 bg-green-50/50",
+        !isCompleted && "hover:border-primary/30"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {isCompleted && (
+              completion.isCompliant
+                ? <CheckCircle className="h-4 w-4 shrink-0 text-green-600" />
+                : <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+            )}
+            <span className={cn("font-medium text-sm", isCompleted && "text-muted-foreground")}>
+              {task.title}
+            </span>
+            {task.isCritical && <Badge variant="destructive" className="text-[10px] px-1 py-0">Critical</Badge>}
+          </div>
+          {task.equipmentType && (
+            <p className="text-xs text-muted-foreground mt-0.5">{task.equipmentType.name}</p>
+          )}
+          {task.config?.min != null && task.config?.max != null && (
+            <p className="text-xs text-muted-foreground">
+              Range: {task.config.min}–{task.config.max}{task.config.unit ? `°${task.config.unit}` : ""}
+              {task.config.target != null && ` · Target: ${task.config.target}`}
+            </p>
+          )}
+          {task.helpText && <p className="text-xs text-muted-foreground mt-1">{task.helpText}</p>}
+        </div>
+        {task.requiresPhoto && (
+          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
+            <Camera className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <TaskInput task={task} completion={completion} onComplete={onComplete} saving={saving} />
+      </div>
+
+      {isNonCompliant && (
+        <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Non-compliant — Corrective Action created
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TaskInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  switch (task.taskType) {
+    case "YES_NO":
+      return <YesNoInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+    case "TEMPERATURE":
+      return <TemperatureInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+    case "NUMERIC":
+      return <NumericInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+    case "TEXT":
+      return <TextInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+    case "SELECT":
+      return <SelectInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+    default:
+      return <p className="text-sm text-muted-foreground">Unsupported type: {task.taskType}</p>;
+  }
+}
+
+function YesNoInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const current = completion?.value?.answer;
+  return (
+    <div className="flex gap-2">
+      <Button
+        variant={current === true ? "default" : "outline"}
+        size="sm"
+        className="flex-1 touch-target"
+        onClick={() => onComplete(task.id, { answer: true })}
+        disabled={saving}
+      >
+        Yes
+      </Button>
+      <Button
+        variant={current === false ? "default" : "outline"}
+        size="sm"
+        className="flex-1 touch-target"
+        onClick={() => onComplete(task.id, { answer: false })}
+        disabled={saving}
+      >
+        No
+      </Button>
+    </div>
+  );
+}
+
+function TemperatureInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const [value, setValue] = useState(completion?.value?.temp?.toString() || "");
+  const unit = task.config?.unit || "F";
+
+  function handleSubmit() {
+    const num = parseFloat(value);
+    if (isNaN(num)) return;
+    onComplete(task.id, { temp: num });
+  }
+
+  return (
+    <div className="flex gap-2">
+      <div className="relative flex-1">
+        <Input
+          type="number"
+          step="0.1"
+          placeholder={`°${unit}`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={handleSubmit}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          className="pr-8"
+          disabled={saving}
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+          °{unit}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function NumericInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const [value, setValue] = useState(completion?.value?.value?.toString() || "");
+
+  function handleSubmit() {
+    const num = parseFloat(value);
+    if (isNaN(num)) return;
+    onComplete(task.id, { value: num });
+  }
+
+  return (
+    <Input
+      type="number"
+      step="any"
+      placeholder="Enter value"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleSubmit}
+      onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+      disabled={saving}
+    />
+  );
+}
+
+function TextInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const [value, setValue] = useState(completion?.value?.text || "");
+
+  function handleSubmit() {
+    if (!value.trim()) return;
+    onComplete(task.id, { text: value });
+  }
+
+  return (
+    <Input
+      placeholder="Enter text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleSubmit}
+      onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+      disabled={saving}
+    />
+  );
+}
+
+function SelectInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+  const choices = task.config?.choices || [];
+  const current = completion?.value?.selected;
+
+  return (
+    <Select
+      value={current || ""}
+      onValueChange={(v: any) => v && onComplete(task.id, { selected: v })}
+      disabled={saving}
+    >
+      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+      <SelectContent>
+        {choices.map((c: string) => (
+          <SelectItem key={c} value={c}>{c}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
