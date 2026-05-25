@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { BUILT_IN_ROLES } from "@/lib/permissions";
-import { execSync } from "child_process";
 
 export async function POST(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -10,8 +9,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    execSync("npx prisma migrate deploy", { stdio: "pipe" });
-
     const existingOrg = await prisma.organization.findFirst();
     if (existingOrg) {
       return Response.json({ message: "Already seeded", orgId: existingOrg.id });

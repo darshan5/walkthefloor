@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
@@ -29,9 +29,23 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/@prisma/adapter-pg ./node_modules/@prisma/adapter-pg
+COPY --from=builder /app/node_modules/pg ./node_modules/pg
+COPY --from=builder /app/node_modules/pg-types ./node_modules/pg-types
+COPY --from=builder /app/node_modules/pg-pool ./node_modules/pg-pool
+COPY --from=builder /app/node_modules/pg-protocol ./node_modules/pg-protocol
+COPY --from=builder /app/node_modules/pg-connection-string ./node_modules/pg-connection-string
+COPY --from=builder /app/node_modules/pgpass ./node_modules/pgpass
+COPY --from=builder /app/node_modules/pg-cloudflare ./node_modules/pg-cloudflare
+COPY --from=builder /app/node_modules/pg-int8 ./node_modules/pg-int8
+COPY --from=builder /app/node_modules/postgres-array ./node_modules/postgres-array
+COPY --from=builder /app/node_modules/postgres-bytea ./node_modules/postgres-bytea
+COPY --from=builder /app/node_modules/postgres-date ./node_modules/postgres-date
+COPY --from=builder /app/node_modules/postgres-interval ./node_modules/postgres-interval
+COPY --from=builder /app/node_modules/split2 ./node_modules/split2
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
