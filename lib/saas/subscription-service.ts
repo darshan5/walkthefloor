@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 
 export async function createCheckoutSession(
   organizationId: string,
@@ -19,14 +19,14 @@ export async function createCheckoutSession(
   let customerId = sub?.stripeCustomerId;
   if (!customerId) {
     const org = await prisma.organization.findUnique({ where: { id: organizationId } });
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       name: org?.name,
       metadata: { organizationId },
     });
     customerId = customer.id;
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
@@ -45,7 +45,7 @@ export async function createPortalSession(organizationId: string, returnUrl: str
   const sub = await prisma.subscription.findUnique({ where: { organizationId } });
   if (!sub?.stripeCustomerId) throw new Error("No Stripe customer found");
 
-  const session = await stripe.billingPortal.sessions.create({
+  const session = await getStripe().billingPortal.sessions.create({
     customer: sub.stripeCustomerId,
     return_url: returnUrl,
   });
