@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,11 @@ type TopBarProps = {
 };
 
 export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
-  const greeting = getGreeting();
+  const [greeting, setGreeting] = useState("");
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background px-4 md:px-6">
@@ -35,7 +40,7 @@ export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
       )}
 
       <div className="hidden md:block">
-        <span className="text-sm text-muted-foreground">{greeting}, </span>
+        {greeting && <span className="text-sm text-muted-foreground">{greeting}, </span>}
         <span className="text-sm font-medium">{user.name}</span>
       </div>
 
