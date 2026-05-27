@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import dynamic from "next/dynamic";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClientProviders } from "@/components/layout/client-providers";
 import "./globals.css";
-
-const Toaster = dynamic(() => import("sonner").then((m) => ({ default: m.Toaster })), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +41,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
-        <Toaster position="top-right" richColors />
+        <ClientProviders />
       </body>
     </html>
   );
