@@ -82,11 +82,19 @@ export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
             <p className="text-xs text-muted-foreground">{user.title || user.role}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => router.push("/profile")}>Profile</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/admin/organization")}>Settings</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/support")}>Support</DropdownMenuItem>
+          <Link href="/profile" className="block">
+            <DropdownMenuItem>Profile</DropdownMenuItem>
+          </Link>
+          <Link href="/admin/organization" className="block">
+            <DropdownMenuItem>Settings</DropdownMenuItem>
+          </Link>
+          <Link href="/support" className="block">
+            <DropdownMenuItem>Support</DropdownMenuItem>
+          </Link>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>Sign out</DropdownMenuItem>
+          <div className="cursor-pointer" onClick={handleSignOut}>
+            <DropdownMenuItem className="text-destructive">Sign out</DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
