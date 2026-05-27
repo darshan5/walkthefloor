@@ -1,4 +1,4 @@
-import { withAuth, apiSuccess, apiError } from "@/lib/api-utils";
+import { withAuth, apiSuccess } from "@/lib/api-utils";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getDailyTasks } from "@/lib/services/compliance-service";
 
@@ -7,7 +7,7 @@ export const GET = withAuth(async (req, _ctx, user) => {
   const locationId = searchParams.get("locationId") || user.homeLocationId;
   const dateStr = searchParams.get("date");
 
-  if (!locationId) return apiError("locationId required");
+  if (!locationId) return apiSuccess([]);
 
   const date = dateStr ? new Date(dateStr) : new Date();
   date.setHours(0, 0, 0, 0);

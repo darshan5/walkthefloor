@@ -1,4 +1,4 @@
-import { withAuth, apiSuccess, apiError } from "@/lib/api-utils";
+import { withAuth, apiSuccess } from "@/lib/api-utils";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getComplianceGrid, getShiftCompliance } from "@/lib/services/compliance-service";
 
@@ -8,7 +8,7 @@ export const GET = withAuth(async (req, _ctx, user) => {
   const view = searchParams.get("view") || "grid";
   const days = parseInt(searchParams.get("days") || "30");
 
-  if (!locationId) return apiError("locationId required");
+  if (!locationId) return apiSuccess([]);
 
   const endDate = new Date();
   const startDate = new Date();
