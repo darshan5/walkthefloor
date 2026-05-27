@@ -1,67 +1,11 @@
-const CACHE_NAME = "wtf-v1";
-const STATIC_ASSETS = ["/", "/login"];
+// Service worker disabled — will be re-enabled when offline support is needed.
+// This file auto-unregisters any previously installed service worker.
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
-});
-
+self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   );
   self.clients.claim();
+  self.registration.unregister();
 });
-
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  if (request.method !== "GET") return;
-  if (url.protocol !== "http:" && url.protocol !== "https:") return;
-
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetching = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || fetching;
-    })
-  );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "SYNC_OFFLINE_QUEUE") {
-    syncOfflineQueue();
-  }
-});
-
-async function syncOfflineQueue() {
-  const clients = await self.clients.matchAll();
-  for (const client of clients) {
-    client.postMessage({ type: "REQUEST_OFFLINE_SYNC" });
-  }
-}

@@ -4,8 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const Toaster = dynamic(() => import("sonner").then((m) => ({ default: m.Toaster })), { ssr: false });
-const ServiceWorkerRegister = dynamic(() => import("@/components/layout/sw-register").then((m) => ({ default: m.ServiceWorkerRegister })), { ssr: false });
-const OfflineIndicator = dynamic(() => import("@/components/layout/offline-indicator").then((m) => ({ default: m.OfflineIndicator })), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,8 +44,6 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
         <Toaster position="top-right" richColors />
-        <ServiceWorkerRegister />
-        <OfflineIndicator />
       </body>
     </html>
   );
