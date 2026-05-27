@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import dynamic from "next/dynamic";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
-import { ServiceWorkerRegister } from "@/components/layout/sw-register";
-import { OfflineIndicator } from "@/components/layout/offline-indicator";
 import "./globals.css";
+
+const Toaster = dynamic(() => import("sonner").then((m) => ({ default: m.Toaster })), { ssr: false });
+const ServiceWorkerRegister = dynamic(() => import("@/components/layout/sw-register").then((m) => ({ default: m.ServiceWorkerRegister })), { ssr: false });
+const OfflineIndicator = dynamic(() => import("@/components/layout/offline-indicator").then((m) => ({ default: m.OfflineIndicator })), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
