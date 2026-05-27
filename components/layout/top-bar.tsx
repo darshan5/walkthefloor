@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Menu, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import Link from "next/link";
+import { Bell, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,10 +29,17 @@ type TopBarProps = {
 
 export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
   const [greeting, setGreeting] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     setGreeting(getGreeting());
   }, []);
+
+  async function handleSignOut() {
+    await signOut({ redirect: false });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background px-4 md:px-6">
@@ -72,11 +82,11 @@ export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
             <p className="text-xs text-muted-foreground">{user.title || user.role}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/profile")}>Profile</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/admin/organization")}>Settings</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/support")}>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive">Sign out</DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>Sign out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
