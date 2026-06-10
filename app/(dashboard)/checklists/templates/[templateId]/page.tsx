@@ -134,7 +134,7 @@ export default function EditTemplatePage() {
   if (!template) return (
     <div className="text-center py-12">
       <p className="text-muted-foreground">Template not found</p>
-      <Link href="/admin/templates"><Button variant="link">Back to templates</Button></Link>
+      <Link href="/checklists/templates"><Button variant="link">Back to templates</Button></Link>
     </div>
   );
 
@@ -143,7 +143,7 @@ export default function EditTemplatePage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/admin/templates">
+        <Link href="/checklists/templates">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div className="flex-1">
