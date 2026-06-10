@@ -8,7 +8,7 @@ export async function generateChecklistInstances() {
 
   const locations = await prisma.location.findMany({
     where: { isActive: true },
-    select: { id: true, organizationId: true, timezone: true },
+    select: { id: true, organizationId: true, timezone: true, operatingHours: true },
   });
 
   let created = 0;
@@ -24,7 +24,8 @@ export async function generateChecklistInstances() {
 
       if (!shouldGenerateToday(schedule, today)) continue;
 
-      const windows = getWindows(schedule, today, location.timezone);
+      const storeHours = getStoreHoursForDay(location.operatingHours as any, today);
+      const windows = generateWindows(schedule, today, storeHours);
 
       for (const window of windows) {
         try {
@@ -49,6 +50,20 @@ export async function generateChecklistInstances() {
   return { created };
 }
 
+function getStoreHoursForDay(
+  operatingHours: Record<string, { open: string; close: string }> | null,
+  today: Date
+): { open: string; close: string } {
+  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const dayName = dayNames[today.getDay()];
+
+  if (operatingHours && operatingHours[dayName]) {
+    return operatingHours[dayName];
+  }
+
+  return { open: "05:00", close: "23:00" };
+}
+
 function shouldGenerateToday(schedule: any, today: Date): boolean {
   switch (schedule.frequency) {
     case "daily":
@@ -70,27 +85,82 @@ function shouldGenerateToday(schedule: any, today: Date): boolean {
   }
 }
 
-function getWindows(schedule: any, today: Date, timezone: string) {
-  const windows = schedule.windows || [];
-  return windows.map((w: any) => {
-    const [startH, startM] = (w.start || "00:00").split(":").map(Number);
-    const [endH, endM] = (w.end || "23:59").split(":").map(Number);
+function generateWindows(
+  schedule: any,
+  today: Date,
+  storeHours: { open: string; close: string }
+) {
+  const [openH, openM] = storeHours.open.split(":").map(Number);
+  const [closeH, closeM] = storeHours.close.split(":").map(Number);
 
-    const startDate = new Date(today);
-    startDate.setHours(startH, startM, 0, 0);
+  const storeOpen = new Date(today);
+  storeOpen.setHours(openH, openM, 0, 0);
 
-    const endDate = new Date(today);
-    endDate.setHours(endH, endM, 0, 0);
-    if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+  const storeClose = new Date(today);
+  storeClose.setHours(closeH, closeM, 0, 0);
+  if (storeClose <= storeOpen) storeClose.setDate(storeClose.getDate() + 1);
 
-    return {
-      label: w.label,
-      start: w.start,
-      end: w.end,
-      startDate,
-      endDate,
-    };
-  });
+  if (schedule.frequency.startsWith("every_")) {
+    const intervalHours = parseInt(schedule.frequency.replace("every_", "").replace("h", ""));
+    return generateIntervalWindows(today, intervalHours, storeOpen, storeClose);
+  }
+
+  if (schedule.windows && schedule.windows.length > 0) {
+    return schedule.windows
+      .map((w: any) => {
+        const [startH, startM] = (w.start || "00:00").split(":").map(Number);
+        const [endH, endM] = (w.end || "23:59").split(":").map(Number);
+
+        const startDate = new Date(today);
+        startDate.setHours(startH, startM, 0, 0);
+
+        const endDate = new Date(today);
+        endDate.setHours(endH, endM, 0, 0);
+        if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+
+        return { label: w.label, start: w.start, end: w.end, startDate, endDate };
+      })
+      .filter((w: any) => w.startDate < storeClose && w.endDate > storeOpen);
+  }
+
+  return [];
+}
+
+function generateIntervalWindows(
+  today: Date,
+  intervalHours: number,
+  storeOpen: Date,
+  storeClose: Date
+) {
+  const windows = [];
+  let windowStart = new Date(storeOpen);
+
+  while (windowStart < storeClose) {
+    const windowEnd = new Date(windowStart);
+    windowEnd.setHours(windowEnd.getHours() + intervalHours);
+
+    if (windowEnd > storeClose) {
+      windowEnd.setTime(storeClose.getTime());
+    }
+
+    if (windowEnd > windowStart) {
+      const startStr = `${String(windowStart.getHours()).padStart(2, "0")}:${String(windowStart.getMinutes()).padStart(2, "0")}`;
+      const endStr = `${String(windowEnd.getHours()).padStart(2, "0")}:${String(windowEnd.getMinutes()).padStart(2, "0")}`;
+
+      let label: string;
+      const h = windowStart.getHours();
+      if (h < 12) label = "AM";
+      else if (h < 17) label = "PM";
+      else label = "Evening";
+      label = `${label} (${startStr})`;
+
+      windows.push({ label, start: startStr, end: endStr, startDate: new Date(windowStart), endDate: new Date(windowEnd) });
+    }
+
+    windowStart = new Date(windowEnd);
+  }
+
+  return windows;
 }
 
 export async function flagOverdueItems() {

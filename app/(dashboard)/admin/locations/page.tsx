@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, MapPin, Copy } from "lucide-react";
+import { Plus, Minus, Pencil, Trash2, MapPin, Copy, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -152,6 +152,37 @@ export default function LocationsPage() {
       setAddEquipOpen(false);
       setAddEquipTypeId("");
       setAddEquipName("");
+      fetchDetail(selectedId);
+      fetchLocations();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleUpdateHours(day: string, open: string, close: string) {
+    if (!selectedId || !detail) return;
+    const currentHours = (detail as any).operatingHours || {};
+    const updated = { ...currentHours, [day]: { open, close } };
+    const res = await fetch(`/api/v1/locations/${selectedId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operatingHours: updated }),
+    });
+    if (res.ok) {
+      toast.success(`${day} hours updated`);
+      fetchDetail(selectedId);
+    }
+  }
+
+  async function handleQuantityChange(equipmentTypeId: string, quantity: number) {
+    if (!selectedId) return;
+    const res = await fetch(`/api/v1/locations/${selectedId}/equipment/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ equipmentTypeId, quantity }),
+    });
+    if (res.ok) {
       fetchDetail(selectedId);
       fetchLocations();
     } else {
@@ -285,6 +316,46 @@ export default function LocationsPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Operating Hours */}
+                  <div className="pt-2">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-medium">Operating Hours</label>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Checklists will only be scheduled during operating hours. Outside these hours, no instances are generated.
+                    </p>
+                    <div className="grid gap-2">
+                      {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
+                        const hours = (detail as any).operatingHours?.[day];
+                        return (
+                          <div key={day} className="flex items-center gap-3 text-sm">
+                            <span className="w-10 font-medium capitalize">{day}</span>
+                            <Input
+                              type="time"
+                              className="w-28 h-8 text-xs"
+                              defaultValue={hours?.open || "05:00"}
+                              onBlur={(e) => {
+                                const val = e.target.value;
+                                handleUpdateHours(day, val, hours?.close || "23:00");
+                              }}
+                            />
+                            <span className="text-muted-foreground">to</span>
+                            <Input
+                              type="time"
+                              className="w-28 h-8 text-xs"
+                              defaultValue={hours?.close || "23:00"}
+                              onBlur={(e) => {
+                                const val = e.target.value;
+                                handleUpdateHours(day, hours?.open || "05:00", val);
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="book" className="space-y-4">
@@ -297,48 +368,60 @@ export default function LocationsPage() {
                         <Copy className="h-3.5 w-3.5" />
                         Clone
                       </Button>
-                      <Button size="sm" onClick={() => setAddEquipOpen(true)} className="gap-1">
-                        <Plus className="h-3.5 w-3.5" />
-                        Add Equipment
-                      </Button>
                     </div>
                   </div>
 
-                  {detail.locationEquipment.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-                      No equipment assigned. Add equipment or clone from another location.
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Equipment Type</TableHead>
-                          <TableHead>Instance Name</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead className="w-16" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                  {/* Quantity controls per equipment type */}
+                  <div className="space-y-2">
+                    {equipTypes.map((et) => {
+                      const count = detail.locationEquipment.filter(
+                        (eq) => eq.equipmentType.id === et.id
+                      ).length;
+                      return (
+                        <div key={et.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <div>
+                            <span className="font-medium text-sm">{et.name}</span>
+                            {et.category && (
+                              <span className="text-xs text-muted-foreground ml-2">{et.category}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={count === 0}
+                              onClick={() => handleQuantityChange(et.id, count - 1)}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="w-8 text-center font-mono text-sm font-medium">{count}</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleQuantityChange(et.id, count + 1)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Instance names list */}
+                  {detail.locationEquipment.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs text-muted-foreground mb-2">Equipment instances:</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {detail.locationEquipment.map((eq) => (
-                          <TableRow key={eq.id}>
-                            <TableCell className="font-medium">{eq.equipmentType.name}</TableCell>
-                            <TableCell>{eq.instanceName}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {eq.equipmentType.category || "—"}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveEquipment(eq.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                          <Badge key={eq.id} variant="outline" className="text-xs">
+                            {eq.instanceName}
+                          </Badge>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
