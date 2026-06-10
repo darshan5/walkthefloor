@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -102,16 +95,13 @@ export default function NewTemplatePage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Frequency</label>
-              <Select value={frequency} onValueChange={(v: any) => v && setFrequency(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {frequencies.map((f) => (
-                    <SelectItem key={f.value} value={f.value}>
-                      {f.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select className="w-full rounded-md border px-3 py-2 text-sm" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
+                {frequencies.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
               <p className="text-xs text-muted-foreground">
                 {frequencies.find((f) => f.value === frequency)?.description}
               </p>

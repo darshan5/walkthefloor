@@ -21,13 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Using native <select> elements instead of Base UI Select for reliability
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Pencil, Trash2, MapPin, Copy, Clock } from "lucide-react";
@@ -545,21 +539,23 @@ export default function LocationsPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Equipment Type</label>
-              <Select value={addEquipTypeId} onValueChange={(v: any) => {
-                if (!v) return;
-                setAddEquipTypeId(v);
-                const t = equipTypes.find((t) => t.id === v);
-                if (t) setAddEquipName(`${t.name} 1`);
-              }}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  {equipTypes.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name} {t.category && `(${t.category})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                value={addEquipTypeId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setAddEquipTypeId(v);
+                  const t = equipTypes.find((t) => t.id === v);
+                  if (t) setAddEquipName(`${t.name} 1`);
+                }}
+              >
+                <option value="">Select type...</option>
+                {equipTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.category && `(${t.category})`}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Instance Name</label>
@@ -634,18 +630,20 @@ export default function LocationsPage() {
           </p>
           <div className="space-y-2 py-2">
             <label className="text-sm font-medium">Source Location</label>
-            <Select value={cloneSourceId} onValueChange={(v: any) => v && setCloneSourceId(v)}>
-              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-              <SelectContent>
-                {locations
-                  .filter((l) => l.id !== selectedId)
-                  .map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name} ({l._count.locationEquipment} equipment)
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <select
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              value={cloneSourceId}
+              onChange={(e) => setCloneSourceId(e.target.value)}
+            >
+              <option value="">Select source...</option>
+              {locations
+                .filter((l) => l.id !== selectedId)
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} ({l._count.locationEquipment} equipment)
+                  </option>
+                ))}
+            </select>
           </div>
           <DialogFooter>
             <DialogClose><Button variant="outline">Cancel</Button></DialogClose>

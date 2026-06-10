@@ -10,9 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/data/status-badge";
@@ -166,12 +163,10 @@ export default function SaasAdminPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Plan</label>
-                <Select value={planId} onValueChange={(v: any) => v && setPlanId(v)}>
-                  <SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger>
-                  <SelectContent>
-                    {plans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={planId} onChange={(e) => setPlanId(e.target.value)}>
+                  <option value="">Select plan...</option>
+                  {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
               </div>
             </div>
           </div>

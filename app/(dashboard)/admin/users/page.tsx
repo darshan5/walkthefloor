@@ -10,9 +10,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Plus, MapPin, UserX } from "lucide-react";
@@ -232,35 +229,27 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Role *</label>
-                <Select value={newRoleId} onValueChange={(v: any) => v && setNewRoleId(v)}>
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>
-                    {roles.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={newRoleId} onChange={(e) => setNewRoleId(e.target.value)}>
+                  <option value="">Select role...</option>
+                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Manager</label>
-                <Select value={newManagerId || "none"} onValueChange={(v: any) => setNewManagerId(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {users.filter((u) => u.isActive).map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name} ({u.role.name})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={newManagerId} onChange={(e) => setNewManagerId(e.target.value)}>
+                  <option value="">None</option>
+                  {users.filter((u) => u.isActive).map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.role.name})</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Home Location</label>
-              <Select value={newHomeLocationId || "none"} onValueChange={(v: any) => setNewHomeLocationId(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <select className="w-full rounded-md border px-3 py-2 text-sm" value={newHomeLocationId} onChange={(e) => setNewHomeLocationId(e.target.value)}>
+                <option value="">None</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
             </div>
           </div>
           <DialogFooter>

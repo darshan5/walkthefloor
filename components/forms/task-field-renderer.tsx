@@ -4,13 +4,6 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Camera, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -222,17 +215,16 @@ function SelectInput({ task, completion, onComplete, saving }: TaskFieldRenderer
   const current = completion?.value?.selected;
 
   return (
-    <Select
+    <select
+      className="w-full rounded-md border px-3 py-2 text-sm"
       value={current || ""}
-      onValueChange={(v: any) => v && onComplete(task.id, { selected: v })}
+      onChange={(e) => e.target.value && onComplete(task.id, { selected: e.target.value })}
       disabled={saving}
     >
-      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-      <SelectContent>
-        {choices.map((c: string) => (
-          <SelectItem key={c} value={c}>{c}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <option value="">Select...</option>
+      {choices.map((c: string) => (
+        <option key={c} value={c}>{c}</option>
+      ))}
+    </select>
   );
 }

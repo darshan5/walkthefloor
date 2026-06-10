@@ -6,13 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -280,26 +273,20 @@ export function ChecklistBuilder({ templateId, tasks, equipmentTypes, onTasksCha
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Task Type</label>
-                <Select value={taskType} onValueChange={(v: any) => v && setTaskType(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(taskTypeLabels).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+                  {Object.entries(taskTypeLabels).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Equipment Type</label>
-                <Select value={equipmentTypeId || "none"} onValueChange={(v: any) => setEquipmentTypeId(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {equipmentTypes.map((et) => (
-                      <SelectItem key={et.id} value={et.id}>{et.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={equipmentTypeId} onChange={(e) => setEquipmentTypeId(e.target.value)}>
+                  <option value="">None</option>
+                  {equipmentTypes.map((et) => (
+                    <option key={et.id} value={et.id}>{et.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -311,13 +298,10 @@ export function ChecklistBuilder({ templateId, tasks, equipmentTypes, onTasksCha
                   <Input placeholder="Max" type="number" value={configMax} onChange={(e) => setConfigMax(e.target.value)} />
                   <Input placeholder="Target" type="number" value={configTarget} onChange={(e) => setConfigTarget(e.target.value)} />
                   {taskType === "TEMPERATURE" && (
-                    <Select value={configUnit} onValueChange={(v: any) => v && setConfigUnit(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="F">°F</SelectItem>
-                        <SelectItem value="C">°C</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select className="w-full rounded-md border px-3 py-2 text-sm" value={configUnit} onChange={(e) => setConfigUnit(e.target.value)}>
+                      <option value="F">°F</option>
+                      <option value="C">°C</option>
+                    </select>
                   )}
                 </div>
               </div>
@@ -326,13 +310,10 @@ export function ChecklistBuilder({ templateId, tasks, equipmentTypes, onTasksCha
             {taskType === "YES_NO" && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">Expected Answer</label>
-                <Select value={configExpected} onValueChange={(v: any) => v && setConfigExpected(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={configExpected} onChange={(e) => setConfigExpected(e.target.value)}>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
               </div>
             )}
 

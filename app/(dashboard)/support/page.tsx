@@ -8,9 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { StatusBadge } from "@/components/data/status-badge";
 import { Headphones, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -146,16 +143,13 @@ export default function SupportPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Category</label>
-              <Select value={category} onValueChange={(v: any) => v && setCategory(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bug">Bug Report</SelectItem>
-                  <SelectItem value="question">Question</SelectItem>
-                  <SelectItem value="feature_request">Feature Request</SelectItem>
-                  <SelectItem value="billing">Billing</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <select className="w-full rounded-md border px-3 py-2 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="bug">Bug Report</option>
+                <option value="question">Question</option>
+                <option value="feature_request">Feature Request</option>
+                <option value="billing">Billing</option>
+                <option value="other">Other</option>
+              </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Message</label>

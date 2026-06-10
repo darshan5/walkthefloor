@@ -189,11 +189,21 @@ export default function EquipmentPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Category</label>
-              <Input
-                placeholder="e.g., Refrigeration"
+              <select
+                className="w-full rounded-md border px-3 py-2 text-sm"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-              />
+              >
+                <option value="">Select category...</option>
+                <option value="Refrigeration">Refrigeration</option>
+                <option value="Cooking">Cooking</option>
+                <option value="Beverage">Beverage</option>
+                <option value="General">General</option>
+                <option value="Cleaning">Cleaning</option>
+                <option value="HVAC">HVAC</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Safety">Safety</option>
+              </select>
             </div>
           </div>
           <DialogFooter>
