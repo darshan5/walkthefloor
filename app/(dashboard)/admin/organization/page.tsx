@@ -159,7 +159,16 @@ export default function OrganizationPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Default Timezone</label>
-                <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/New_York" />
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  <option value="America/New_York">Eastern (ET) — America/New_York</option>
+                  <option value="America/Chicago">Central (CT) — America/Chicago</option>
+                  <option value="America/Denver">Mountain (MT) — America/Denver</option>
+                  <option value="America/Los_Angeles">Pacific (PT) — America/Los_Angeles</option>
+                  <option value="America/Anchorage">Alaska (AKT) — America/Anchorage</option>
+                  <option value="Pacific/Honolulu">Hawaii (HT) — Pacific/Honolulu</option>
+                  <option value="America/Phoenix">Arizona (no DST) — America/Phoenix</option>
+                  <option value="America/Puerto_Rico">Atlantic (AST) — America/Puerto_Rico</option>
+                </select>
                 <p className="text-xs text-muted-foreground">Used as the default for new locations</p>
               </div>
               <Button onClick={handleSaveGeneral} disabled={saving}>

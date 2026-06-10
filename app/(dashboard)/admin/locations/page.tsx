@@ -31,6 +31,17 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Pencil, Trash2, MapPin, Copy, Clock } from "lucide-react";
+
+const US_TIMEZONES = [
+  { value: "America/New_York", label: "Eastern (ET)" },
+  { value: "America/Chicago", label: "Central (CT)" },
+  { value: "America/Denver", label: "Mountain (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific (PT)" },
+  { value: "America/Anchorage", label: "Alaska (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (HT)" },
+  { value: "America/Phoenix", label: "Arizona (no DST)" },
+  { value: "America/Puerto_Rico", label: "Atlantic (AST)" },
+];
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -509,7 +520,11 @@ export default function LocationsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Timezone</label>
-              <Input value={newTimezone} onChange={(e) => setNewTimezone(e.target.value)} />
+              <select className="w-full rounded-md border px-3 py-2 text-sm" value={newTimezone} onChange={(e) => setNewTimezone(e.target.value)}>
+                {US_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label} — {tz.value}</option>
+                ))}
+              </select>
             </div>
           </div>
           <DialogFooter>
@@ -587,7 +602,11 @@ export default function LocationsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Timezone</label>
-              <Input value={editTimezone} onChange={(e) => setEditTimezone(e.target.value)} />
+              <select className="w-full rounded-md border px-3 py-2 text-sm" value={editTimezone} onChange={(e) => setEditTimezone(e.target.value)}>
+                {US_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label} — {tz.value}</option>
+                ))}
+              </select>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} className="rounded" />
