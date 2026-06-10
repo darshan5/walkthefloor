@@ -29,9 +29,8 @@ export async function generateChecklistInstances() {
     for (const locId of assignedLocationIds) {
       const location = locationMap.get(locId);
       if (!location || location.organizationId !== template.organizationId) continue;
-      const now = new Date();
-      const today = new Date(now.toLocaleString("en-US", { timeZone: location.timezone }));
-      today.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
 
       if (!shouldGenerateToday(schedule, today)) continue;
 
@@ -107,11 +106,11 @@ function generateWindows(
   const [closeH, closeM] = storeHours.close.split(":").map(Number);
 
   const storeOpen = new Date(today);
-  storeOpen.setHours(openH, openM, 0, 0);
+  storeOpen.setUTCHours(openH, openM, 0, 0);
 
   const storeClose = new Date(today);
-  storeClose.setHours(closeH, closeM, 0, 0);
-  if (storeClose <= storeOpen) storeClose.setDate(storeClose.getDate() + 1);
+  storeClose.setUTCHours(closeH, closeM, 0, 0);
+  if (storeClose <= storeOpen) storeClose.setUTCDate(storeClose.getUTCDate() + 1);
 
   if (schedule.frequency.startsWith("every_")) {
     const intervalHours = parseInt(schedule.frequency.replace("every_", "").replace("h", ""));
@@ -125,11 +124,11 @@ function generateWindows(
         const [endH, endM] = (w.end || "23:59").split(":").map(Number);
 
         const startDate = new Date(today);
-        startDate.setHours(startH, startM, 0, 0);
+        startDate.setUTCHours(startH, startM, 0, 0);
 
         const endDate = new Date(today);
-        endDate.setHours(endH, endM, 0, 0);
-        if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+        endDate.setUTCHours(endH, endM, 0, 0);
+        if (endDate <= startDate) endDate.setUTCDate(endDate.getUTCDate() + 1);
 
         return { label: w.label, start: w.start, end: w.end, startDate, endDate };
       })
@@ -150,18 +149,18 @@ function generateIntervalWindows(
 
   while (windowStart < storeClose) {
     const windowEnd = new Date(windowStart);
-    windowEnd.setHours(windowEnd.getHours() + intervalHours);
+    windowEnd.setUTCHours(windowEnd.getUTCHours() + intervalHours);
 
     if (windowEnd > storeClose) {
       windowEnd.setTime(storeClose.getTime());
     }
 
     if (windowEnd > windowStart) {
-      const startStr = `${String(windowStart.getHours()).padStart(2, "0")}:${String(windowStart.getMinutes()).padStart(2, "0")}`;
-      const endStr = `${String(windowEnd.getHours()).padStart(2, "0")}:${String(windowEnd.getMinutes()).padStart(2, "0")}`;
+      const startStr = `${String(windowStart.getUTCHours()).padStart(2, "0")}:${String(windowStart.getUTCMinutes()).padStart(2, "0")}`;
+      const endStr = `${String(windowEnd.getUTCHours()).padStart(2, "0")}:${String(windowEnd.getUTCMinutes()).padStart(2, "0")}`;
 
       let label: string;
-      const h = windowStart.getHours();
+      const h = windowStart.getUTCHours();
       if (h < 12) label = "AM";
       else if (h < 17) label = "PM";
       else label = "Evening";
