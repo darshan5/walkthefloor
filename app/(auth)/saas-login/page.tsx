@@ -1,15 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Shield } from "lucide-react";
 
 export default function SaasLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,20 +17,27 @@ export default function SaasLoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("saas-admin-credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+
+      const res = await fetch("/api/auth/callback/saas-admin-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ csrfToken, email, password }),
+        redirect: "follow",
+      });
+
+      if (res.ok || res.redirected) {
+        window.location.href = "/saas-admin";
+      } else {
+        setError("Invalid credentials");
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
 
     setLoading(false);
-
-    if (result?.error) {
-      setError("Invalid credentials");
-    } else {
-      router.push("/saas-admin");
-      router.refresh();
-    }
   }
 
   return (

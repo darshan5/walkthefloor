@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { Bell, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,16 +27,20 @@ type TopBarProps = {
 
 export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
   const [greeting, setGreeting] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
     setGreeting(getGreeting());
   }, []);
 
   async function handleSignOut() {
-    await signOut({ redirect: false });
-    router.push("/login");
-    router.refresh();
+    const csrfRes = await fetch("/api/auth/csrf");
+    const { csrfToken } = await csrfRes.json();
+    await fetch("/api/auth/signout", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ csrfToken }),
+    });
+    window.location.href = "/login";
   }
 
   return (
