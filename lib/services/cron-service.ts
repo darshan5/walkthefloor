@@ -3,7 +3,12 @@ import { prisma } from "@/lib/prisma";
 export async function generateChecklistInstances() {
   const templates = await prisma.checklistTemplate.findMany({
     where: { isActive: true },
-    select: { id: true, schedule: true, organizationId: true },
+    select: {
+      id: true,
+      schedule: true,
+      organizationId: true,
+      locationAssignments: { select: { locationId: true } },
+    },
   });
 
   const locations = await prisma.location.findMany({
@@ -11,13 +16,19 @@ export async function generateChecklistInstances() {
     select: { id: true, organizationId: true, timezone: true, operatingHours: true },
   });
 
+  const locationMap = new Map(locations.map((l) => [l.id, l]));
+
   let created = 0;
 
   for (const template of templates) {
     const schedule = template.schedule as any;
-    const orgLocations = locations.filter((l) => l.organizationId === template.organizationId);
+    const assignedLocationIds = template.locationAssignments.map((a) => a.locationId);
 
-    for (const location of orgLocations) {
+    if (assignedLocationIds.length === 0) continue;
+
+    for (const locId of assignedLocationIds) {
+      const location = locationMap.get(locId);
+      if (!location || location.organizationId !== template.organizationId) continue;
       const now = new Date();
       const today = new Date(now.toLocaleString("en-US", { timeZone: location.timezone }));
       today.setHours(0, 0, 0, 0);

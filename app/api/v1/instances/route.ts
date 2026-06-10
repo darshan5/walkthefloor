@@ -5,6 +5,7 @@ import { getTodaysInstances } from "@/lib/services/instance-service";
 export const GET = withAuth(async (req, _ctx, user) => {
   const { searchParams } = new URL(req.url);
   const locationId = searchParams.get("locationId") || user.homeLocationId;
+  const type = searchParams.get("type") || undefined;
 
   if (!locationId) return apiSuccess([]);
 
@@ -12,6 +13,6 @@ export const GET = withAuth(async (req, _ctx, user) => {
     return apiSuccess([]);
   }
 
-  const instances = await getTodaysInstances(locationId, user.organizationId);
+  const instances = await getTodaysInstances(locationId, user.organizationId, type);
   return apiSuccess(instances);
 }, PERMISSIONS.CHECKLISTS_VIEW);

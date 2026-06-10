@@ -1,129 +1,87 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/data/status-badge";
+import { ComplianceBar } from "@/components/data/compliance-bar";
+import { ListChecks, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type CategoryData = {
-  category: string;
-  compliancePercent: number;
-  dates: {
-    date: string;
-    items: {
-      value: any;
-      isCompliant: boolean;
-      user: { name: string };
-      task: { title: string; taskType: string; config: any; equipmentType: { name: string; category: string } | null };
-      instance: { date: string; windowLabel: string | null };
-    }[];
-  }[];
+type Instance = {
+  id: string;
+  status: string;
+  windowLabel: string | null;
+  windowEnd: string | null;
+  completedAt: string | null;
+  template: { id: string; name: string; category: string | null };
+  _count: { completions: number };
 };
 
-export default function TaskDashboardPage() {
-  const [data, setData] = useState<CategoryData[]>([]);
+export default function TasksPage() {
+  const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/v1/reports/compliance?view=grid&days=14")
+    fetch("/api/v1/instances?type=task")
       .then((r) => r.json())
-      .then(({ data }) => {
-        setData(data || []);
-        if (data?.length > 0) setSelectedCategory(null);
-      })
+      .then(({ data }) => setInstances(data || []))
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = selectedCategory ? data.filter((c) => c.category === selectedCategory) : data;
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Task Dashboard</h1>
-
-      {/* Category tabs */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className={cn(
-            "rounded-full px-3 py-1 text-sm transition-colors border",
-            !selectedCategory ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-          )}
-        >
-          All Categories
-        </button>
-        {data.map((cat) => (
-          <button
-            key={cat.category}
-            onClick={() => setSelectedCategory(cat.category)}
-            className={cn(
-              "rounded-full px-3 py-1 text-sm transition-colors border",
-              selectedCategory === cat.category ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-            )}
-          >
-            {cat.category} <span className="ml-1 opacity-70">{cat.compliancePercent}%</span>
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <ListChecks className="h-5 w-5" />
+        <h1 className="text-2xl font-bold">Tasks</h1>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading...</div>
-      ) : filtered.length === 0 ? (
+      {instances.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No compliance data available. Data populates as checklists are completed.
+            No tasks assigned for today. Tasks are assigned by admin from the Templates section.
           </CardContent>
         </Card>
       ) : (
-        filtered.map((cat) => (
-          <Card key={cat.category}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{cat.category}</CardTitle>
-                <Badge variant={cat.compliancePercent >= 95 ? "outline" : "destructive"}>
-                  {cat.compliancePercent}%
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <div className="flex gap-1 min-w-max">
-                  {cat.dates.map((d) => (
-                    <div key={d.date} className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">
-                        {new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </p>
-                      <div className="space-y-0.5">
-                        {d.items.map((item, i) => {
-                          let display = "";
-                          if (item.task.taskType === "TEMPERATURE") {
-                            display = `${item.value?.temp ?? "—"}°`;
-                          } else if (item.task.taskType === "YES_NO") {
-                            display = item.value?.answer ? "Y" : "N";
-                          } else {
-                            display = item.isCompliant ? "✓" : "✗";
-                          }
-                          return (
-                            <div
-                              key={i}
-                              title={`${item.task.title} — ${item.user.name}`}
-                              className={cn(
-                                "w-12 px-1 py-0.5 rounded text-[11px] font-mono text-center cursor-default",
-                                item.isCompliant ? "bg-compliance-green compliance-green" : "bg-compliance-red compliance-red"
-                              )}
-                            >
-                              {display}
-                            </div>
-                          );
-                        })}
-                      </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {instances.map((inst) => {
+            const windowEnd = inst.windowEnd ? new Date(inst.windowEnd) : null;
+            const isClickable = inst.status !== "MISSED";
+
+            const content = (
+              <Card className={cn("transition-shadow", isClickable && "hover:shadow-md cursor-pointer", inst.status === "MISSED" && "opacity-60")}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-medium">{inst.template.name}</span>
+                      {inst.windowLabel && <Badge variant="outline" className="text-xs ml-2">{inst.windowLabel}</Badge>}
+                      {inst.template.category && <p className="text-xs text-muted-foreground mt-0.5">{inst.template.category}</p>}
                     </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))
+                    <StatusBadge status={inst.status} />
+                  </div>
+                  <div className="mt-3">
+                    <ComplianceBar value={inst._count.completions} max={1} size="sm" />
+                  </div>
+                  {windowEnd && inst.status === "PENDING" && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Due by {windowEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+
+            return isClickable ? (
+              <Link key={inst.id} href={`/checklists/${inst.id}`}>{content}</Link>
+            ) : (
+              <div key={inst.id}>{content}</div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

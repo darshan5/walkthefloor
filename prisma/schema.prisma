@@ -66,6 +66,7 @@ model Location {
   homeUsers           User[]                   @relation("HomeLocation")
   locationEquipment   LocationEquipment[]
   templateConfigs     LocationTemplateConfig[]
+  templateAssignments TemplateLocationAssignment[]
   checklistInstances  ChecklistInstance[]
   correctiveActions   CorrectiveAction[]
   temperatureLogs     TemperatureLog[]
@@ -208,6 +209,7 @@ model ChecklistTemplate {
   name               String
   description        String?
   category           String?
+  assignmentType     String                   @default("book") // "book" (mandatory) or "task"
   isBuiltIn          Boolean                  @default(false)
   isCustom           Boolean                  @default(false)
   schedule           Json
@@ -218,11 +220,25 @@ model ChecklistTemplate {
   instances          ChecklistInstance[]
   locationConfigs    LocationTemplateConfig[]
   complianceFailures ComplianceFailure[]
+  locationAssignments TemplateLocationAssignment[]
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
   @@index([organizationId])
   @@index([category])
+  @@index([assignmentType])
+}
+
+model TemplateLocationAssignment {
+  id         String            @id @default(cuid())
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location          @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt  DateTime          @default(now())
+
+  @@unique([templateId, locationId])
+  @@index([locationId])
 }
 
 model ChecklistTask {

@@ -35,7 +35,7 @@ export default function ChecklistsPage() {
   useEffect(() => {
     async function fetch_data() {
       const [instRes, dashRes] = await Promise.all([
-        fetch("/api/v1/instances"),
+        fetch("/api/v1/instances?type=book"),
         fetch("/api/v1/dashboard"),
       ]);
       if (instRes.ok) {

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { alertManagersOnNonCompliantTemp } from "@/lib/services/notification-service";
 
-export async function getTodaysInstances(locationId: string, organizationId: string) {
+export async function getTodaysInstances(locationId: string, organizationId: string, assignmentType?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -12,10 +12,11 @@ export async function getTodaysInstances(locationId: string, organizationId: str
       locationId,
       location: { organizationId },
       date: { gte: today, lt: tomorrow },
+      ...(assignmentType && { template: { assignmentType } }),
     },
     include: {
       template: {
-        select: { id: true, name: true, category: true, schedule: true },
+        select: { id: true, name: true, category: true, schedule: true, assignmentType: true },
       },
       completions: {
         select: { id: true, taskId: true, isCompliant: true, completedAt: true },
