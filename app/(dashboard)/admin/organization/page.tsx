@@ -174,16 +174,19 @@ export default function OrganizationPage() {
             <CardHeader><CardTitle className="text-base">Book / Checklist Settings</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Task Expiry Notification (minutes before)</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="120"
+                <label className="text-sm font-medium">Task Expiration</label>
+                <select
+                  className="w-48 rounded-md border px-3 py-2 text-sm"
                   value={taskExpiry}
                   onChange={(e) => setTaskExpiry(e.target.value)}
-                  className="w-32"
-                />
-                <p className="text-xs text-muted-foreground">Notify managers this many minutes before a compliance window closes</p>
+                >
+                  <option value="60">1 Hour</option>
+                  <option value="1440">1 Day (24 hours)</option>
+                  <option value="10080">1 Week (7 days)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  How long after the compliance window opens before an incomplete checklist is marked as missed
+                </p>
               </div>
 
               <div>
