@@ -80,6 +80,12 @@ export default function LocationsPage() {
   const [addEquipName, setAddEquipName] = useState("");
   const [cloneOpen, setCloneOpen] = useState(false);
   const [cloneSourceId, setCloneSourceId] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editStore, setEditStore] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editTimezone, setEditTimezone] = useState("");
+  const [editActive, setEditActive] = useState(true);
 
   async function fetchLocations() {
     const res = await fetch("/api/v1/locations");
@@ -152,6 +158,42 @@ export default function LocationsPage() {
       setAddEquipOpen(false);
       setAddEquipTypeId("");
       setAddEquipName("");
+      fetchDetail(selectedId);
+      fetchLocations();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  function openEditLocation() {
+    if (!detail) return;
+    setEditName(detail.name);
+    setEditStore(detail.storeNumber || "");
+    setEditAddress(detail.address || "");
+    setEditTimezone(detail.timezone);
+    setEditActive(detail.isActive);
+    setEditOpen(true);
+  }
+
+  async function handleEditLocation() {
+    if (!selectedId) return;
+    setSaving(true);
+    const res = await fetch(`/api/v1/locations/${selectedId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        storeNumber: editStore || undefined,
+        address: editAddress || undefined,
+        timezone: editTimezone,
+        isActive: editActive,
+      }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      toast.success("Location updated");
+      setEditOpen(false);
       fetchDetail(selectedId);
       fetchLocations();
     } else {
@@ -283,9 +325,14 @@ export default function LocationsPage() {
                     <p className="text-sm text-muted-foreground">Store #{detail.storeNumber}</p>
                   )}
                 </div>
-                <Badge variant={detail.isActive ? "default" : "outline"}>
-                  {detail.isActive ? "Active" : "Inactive"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={detail.isActive ? "default" : "outline"}>
+                    {detail.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                  <Button variant="ghost" size="icon" onClick={() => openEditLocation()}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -503,6 +550,45 @@ export default function LocationsPage() {
             <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={handleAddEquipment} disabled={saving || !addEquipTypeId || !addEquipName.trim()}>
               {saving ? "Adding..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Location Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name</label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Store Number</label>
+                <Input value={editStore} onChange={(e) => setEditStore(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Timezone</label>
+              <Input value={editTimezone} onChange={(e) => setEditTimezone(e.target.value)} />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} className="rounded" />
+              Active
+            </label>
+          </div>
+          <DialogFooter>
+            <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
+            <Button onClick={handleEditLocation} disabled={saving || !editName.trim()}>
+              {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
