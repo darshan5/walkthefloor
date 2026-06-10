@@ -202,17 +202,17 @@ export default function LocationsPage() {
     }
   }
 
-  async function handleUpdateHours(day: string, open: string, close: string) {
+  async function handleUpdateHours(day: string, open: string, close: string, closed?: boolean) {
     if (!selectedId || !detail) return;
     const currentHours = (detail as any).operatingHours || {};
-    const updated = { ...currentHours, [day]: { open, close } };
+    const updated = { ...currentHours, [day]: closed ? { closed: true } : { open, close } };
     const res = await fetch(`/api/v1/locations/${selectedId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ operatingHours: updated }),
     });
     if (res.ok) {
-      toast.success(`${day} hours updated`);
+      toast.success(closed ? `${day}: Closed` : `${day} hours updated`);
       fetchDetail(selectedId);
     }
   }
@@ -376,28 +376,37 @@ export default function LocationsPage() {
                     <div className="grid gap-2">
                       {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => {
                         const hours = (detail as any).operatingHours?.[day];
+                        const isClosed = hours?.closed === true;
                         return (
                           <div key={day} className="flex items-center gap-3 text-sm">
-                            <span className="w-10 font-medium capitalize">{day}</span>
-                            <Input
-                              type="time"
-                              className="w-28 h-8 text-xs"
-                              defaultValue={hours?.open || "05:00"}
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                handleUpdateHours(day, val, hours?.close || "23:00");
-                              }}
-                            />
-                            <span className="text-muted-foreground">to</span>
-                            <Input
-                              type="time"
-                              className="w-28 h-8 text-xs"
-                              defaultValue={hours?.close || "23:00"}
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                handleUpdateHours(day, hours?.open || "05:00", val);
-                              }}
-                            />
+                            <span className={cn("w-10 font-medium capitalize", isClosed && "text-muted-foreground")}>{day}</span>
+                            <label className="flex items-center gap-1.5 cursor-pointer w-20">
+                              <input
+                                type="checkbox"
+                                checked={isClosed}
+                                onChange={(e) => handleUpdateHours(day, hours?.open || "05:00", hours?.close || "23:00", e.target.checked)}
+                                className="rounded"
+                              />
+                              <span className="text-xs text-muted-foreground">Closed</span>
+                            </label>
+                            {!isClosed && (
+                              <>
+                                <Input
+                                  type="time"
+                                  className="w-28 h-8 text-xs"
+                                  defaultValue={hours?.open || "05:00"}
+                                  onBlur={(e) => handleUpdateHours(day, e.target.value, hours?.close || "23:00", false)}
+                                />
+                                <span className="text-muted-foreground">to</span>
+                                <Input
+                                  type="time"
+                                  className="w-28 h-8 text-xs"
+                                  defaultValue={hours?.close || "23:00"}
+                                  onBlur={(e) => handleUpdateHours(day, hours?.open || "05:00", e.target.value, false)}
+                                />
+                              </>
+                            )}
+                            {isClosed && <span className="text-xs text-muted-foreground italic">No checklists generated</span>}
                           </div>
                         );
                       })}

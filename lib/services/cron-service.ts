@@ -25,6 +25,7 @@ export async function generateChecklistInstances() {
       if (!shouldGenerateToday(schedule, today)) continue;
 
       const storeHours = getStoreHoursForDay(location.operatingHours as any, today);
+      if (!storeHours) continue;
       const windows = generateWindows(schedule, today, storeHours);
 
       for (const window of windows) {
@@ -51,13 +52,14 @@ export async function generateChecklistInstances() {
 }
 
 function getStoreHoursForDay(
-  operatingHours: Record<string, { open: string; close: string }> | null,
+  operatingHours: Record<string, any> | null,
   today: Date
-): { open: string; close: string } {
+): { open: string; close: string } | null {
   const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
   const dayName = dayNames[today.getDay()];
 
   if (operatingHours && operatingHours[dayName]) {
+    if (operatingHours[dayName].closed) return null;
     return operatingHours[dayName];
   }
 
