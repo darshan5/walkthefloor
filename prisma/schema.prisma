@@ -167,11 +167,27 @@ model RegisteredDevice {
   createdAt   DateTime  @default(now())
 }
 
-// ── EQUIPMENT ──────────────────────────────────────
+// ── EQUIPMENT CATEGORIES & TYPES ───────────────────
+
+model EquipmentCategory {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  checkTypes     Json            @default("[]")
+  // checkTypes: ["temperature", "calibration", "yes_no"]
+  complianceRules Json           @default("{}")
+  // complianceRules: {
+  //   temperature: { maxTemp: 0, unit: "F", label: "Temperature" },
+  //   calibration: { target: 25, tolerance: 1, unit: "g", label: "Calibration" }
+  // }
+  createdAt      DateTime        @default(now())
+  equipmentTypes EquipmentType[]
+}
 
 model EquipmentType {
   id                String              @id @default(cuid())
   name              String
+  categoryId        String?
+  equipmentCategory EquipmentCategory?  @relation(fields: [categoryId], references: [id])
   category          String?
   organizationId    String
   organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -180,6 +196,7 @@ model EquipmentType {
 
   @@unique([name, organizationId])
   @@index([organizationId])
+  @@index([categoryId])
 }
 
 model LocationEquipment {
