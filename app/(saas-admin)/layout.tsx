@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Building2, Users, CreditCard, ScrollText, Settings, Shield } from "lucide-react";
+import { Building2, Users, CreditCard, ScrollText, Settings, Shield, Box } from "lucide-react";
 
 const navItems = [
   { label: "Organizations", href: "/saas-admin", icon: Building2 },
+  { label: "Equipment", href: "/saas-admin/equipment", icon: Box },
   { label: "Audit Log", href: "/saas-admin/audit-log", icon: ScrollText },
   { label: "Settings", href: "/saas-admin/settings", icon: Settings },
 ];
