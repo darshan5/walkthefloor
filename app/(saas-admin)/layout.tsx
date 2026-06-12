@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { Building2, Users, CreditCard, ScrollText, Settings, Shield, Box } from "lucide-react";
+import { SaasLogoutButton } from "@/components/layout/saas-logout-button";
 
 const navItems = [
   { label: "Organizations", href: "/saas-admin", icon: Building2 },
@@ -45,7 +46,10 @@ export default async function SaasAdminLayout({ children }: { children: React.Re
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background px-6">
           <span className="text-sm text-muted-foreground">WalkTheFloor Platform Admin</span>
-          <span className="text-sm font-medium">{user.name}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{user.name}</span>
+            <SaasLogoutButton />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl p-6">{children}</div>
