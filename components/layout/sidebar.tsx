@@ -36,17 +36,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  {
-    label: "Checklists",
-    href: "/checklists",
-    icon: ClipboardCheck,
-    permission: "checklists",
-    children: [
-      { label: "Book", href: "/checklists" },
-      { label: "Tasks", href: "/checklists/tasks" },
-      { label: "Corrective Actions", href: "/checklists/corrective-actions" },
-    ],
-  },
+  { label: "Book", href: "/checklists", icon: ClipboardCheck, permission: "checklists" },
+  { label: "Tasks", href: "/checklists/tasks", icon: ListChecks, permission: "checklists" },
+  { label: "Corrective Actions", href: "/checklists/corrective-actions", icon: AlertTriangle, permission: "checklists" },
   // { label: "Audits", href: "/audits", icon: ListChecks, permission: "audits" }, // Phase 2
   { label: "Maintenance", href: "/maintenance", icon: Wrench, permission: "maintenance" },
   { label: "Guest Service", href: "/guest-service", icon: MessageSquare, permission: "guest_service" },

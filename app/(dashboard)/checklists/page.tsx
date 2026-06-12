@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/data/status-badge";
 import { ComplianceBar } from "@/components/data/compliance-bar";
 import { TaskFieldRenderer } from "@/components/forms/task-field-renderer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, CheckCircle, AlertTriangle, XCircle, MessageSquare } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -41,7 +39,6 @@ export default function BookPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<InstanceDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"open" | "missed" | "all">("open");
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
   async function fetchInstances() {
@@ -90,12 +87,7 @@ export default function BookPage() {
 
   const openCount = instances.filter((i) => i.status === "PENDING" || i.status === "IN_PROGRESS").length;
   const missedCount = instances.filter((i) => i.status === "MISSED").length;
-
-  const filtered = tab === "open"
-    ? instances.filter((i) => i.status === "PENDING" || i.status === "IN_PROGRESS")
-    : tab === "missed"
-    ? instances.filter((i) => i.status === "MISSED")
-    : instances;
+  const completedCount = instances.filter((i) => i.status === "COMPLETED" || i.status === "COMPLETED_LATE").length;
 
   const completionMap = detail ? new Map(detail.completions.map((c: any) => [c.taskId, c])) : new Map();
   const tasks = detail?.template?.tasks || [];
@@ -105,144 +97,111 @@ export default function BookPage() {
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold">Book</h1>
 
-      <div className="grid gap-4 md:grid-cols-[340px_1fr] h-[calc(100vh-12rem)]">
-        {/* Left: Checklist list */}
-        <div className="flex flex-col border rounded-lg overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b text-sm">
-            <button
-              onClick={() => setTab("open")}
-              className={cn("flex-1 py-2.5 text-center transition-colors", tab === "open" ? "border-b-2 border-primary text-primary font-medium" : "text-muted-foreground")}
-            >
-              Open ({openCount})
-            </button>
-            <button
-              onClick={() => setTab("missed")}
-              className={cn("flex-1 py-2.5 text-center transition-colors", tab === "missed" ? "border-b-2 border-destructive text-destructive font-medium" : "text-muted-foreground")}
-            >
-              Missed ({missedCount})
-            </button>
-            <button
-              onClick={() => setTab("all")}
-              className={cn("flex-1 py-2.5 text-center transition-colors", tab === "all" ? "border-b-2 border-primary text-primary font-medium" : "text-muted-foreground")}
-            >
-              All ({instances.length})
-            </button>
-          </div>
-
-          {/* List */}
-          <ScrollArea className="flex-1">
-            {filtered.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {tab === "open" ? "No open checklists" : tab === "missed" ? "No missed checklists" : "No checklists for today"}
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filtered.map((inst) => {
-                  const windowStart = inst.windowStart ? new Date(inst.windowStart) : null;
-                  const windowEnd = inst.windowEnd ? new Date(inst.windowEnd) : null;
-                  const isSelected = selectedId === inst.id;
-
-                  return (
-                    <button
-                      key={inst.id}
-                      onClick={() => setSelectedId(inst.id)}
-                      className={cn(
-                        "w-full text-left p-3 transition-colors hover:bg-accent",
-                        isSelected && "bg-accent border-l-2 border-primary"
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="font-medium text-sm">{inst.template.name}</span>
-                          {inst.windowLabel && (
-                            <span className="text-xs text-muted-foreground ml-1">({inst.windowLabel})</span>
-                          )}
-                        </div>
-                        <StatusBadge status={inst.status} />
-                      </div>
-                      {inst.template.category && (
-                        <Badge variant="outline" className="text-[10px] mt-1">{inst.template.category}</Badge>
-                      )}
-                      {windowStart && windowEnd && (
-                        <p className="text-xs text-green-600 mt-1" suppressHydrationWarning>
-                          {windowStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                          {" - "}
-                          {windowEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-
-        {/* Right: Checklist detail */}
-        {detail ? (
-          <div className="border rounded-lg overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b p-4">
-              <div>
-                <h2 className="font-semibold text-lg">{detail.template.name}</h2>
-                {detail.windowLabel && (
-                  <span className="text-sm text-muted-foreground">{detail.windowLabel}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={detail.status} />
-                {detail.status === "COMPLETED" && (
-                  <Badge variant="outline" className="text-green-600">
-                    <CheckCircle className="h-3 w-3 mr-1" /> Submitted
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Time window */}
-            {detail.windowStart && detail.windowEnd && (
-              <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between" suppressHydrationWarning>
-                <span className="text-sm text-red-600 font-medium">
-                  {new Date(detail.windowStart).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                  {" - "}
-                  {new Date(detail.windowEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                </span>
-                <ComplianceBar
-                  value={completedRequired.length}
-                  max={requiredTasks.length}
-                  label={`${completedRequired.length}/${requiredTasks.length}`}
-                  size="sm"
-                />
-              </div>
-            )}
-
-            {/* Tasks */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-3 pb-4">
-                {tasks.map((task: any) => (
-                  <TaskFieldRenderer
-                    key={task.id}
-                    task={task}
-                    completion={completionMap.get(task.id)}
-                    onComplete={handleComplete}
-                    saving={savingTaskId === task.id}
-                  />
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        ) : (
-          <div className="border rounded-lg flex items-center justify-center text-muted-foreground">
-            {instances.length === 0
-              ? "No checklists for today. Assign checklists to this location in Admin → Checklists."
-              : "Select a checklist to view"}
-          </div>
-        )}
+      {/* Status summary */}
+      <div className="flex gap-3 text-sm">
+        <Badge variant="outline" className={cn("gap-1", openCount > 0 && "border-blue-300 text-blue-700")}>
+          {openCount} Open
+        </Badge>
+        <Badge variant="outline" className={cn("gap-1", missedCount > 0 && "border-red-300 text-red-700")}>
+          {missedCount} Missed
+        </Badge>
+        <Badge variant="outline" className={cn("gap-1", completedCount > 0 && "border-green-300 text-green-700")}>
+          {completedCount} Done
+        </Badge>
       </div>
+
+      {/* Checklist selector */}
+      {instances.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No checklists for today. Assign checklists to this location in Admin → Checklists.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <select
+            className="w-full rounded-md border px-3 py-3 text-sm font-medium touch-target"
+            value={selectedId || ""}
+            onChange={(e) => setSelectedId(e.target.value)}
+          >
+            {instances.map((inst) => {
+              const statusIcon = inst.status === "COMPLETED" ? "✓" : inst.status === "MISSED" ? "✗" : "○";
+              const windowEnd = inst.windowEnd ? new Date(inst.windowEnd) : null;
+              const timeStr = windowEnd ? windowEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+              return (
+                <option key={inst.id} value={inst.id}>
+                  {statusIcon} {inst.template.name} ({inst.windowLabel}) {timeStr && `— due ${timeStr}`}
+                </option>
+              );
+            })}
+          </select>
+
+          {/* Selected checklist detail */}
+          {detail && (
+            <Card>
+              <CardContent className="p-0">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b">
+                  <div>
+                    <h2 className="font-semibold">{detail.template.name}</h2>
+                    {detail.windowLabel && (
+                      <span className="text-sm text-muted-foreground">{detail.windowLabel}</span>
+                    )}
+                  </div>
+                  <StatusBadge status={detail.status} />
+                </div>
+
+                {/* Time window + progress */}
+                {detail.windowStart && detail.windowEnd && (
+                  <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between" suppressHydrationWarning>
+                    <span className="text-sm text-red-600 font-medium flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {new Date(detail.windowStart).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                      {" - "}
+                      {new Date(detail.windowEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                    <ComplianceBar
+                      value={completedRequired.length}
+                      max={requiredTasks.length}
+                      label={`${completedRequired.length}/${requiredTasks.length}`}
+                      size="sm"
+                    />
+                  </div>
+                )}
+
+                {/* Completed indicator */}
+                {detail.status === "COMPLETED" && (
+                  <div className="px-4 py-2 bg-green-50 border-b flex items-center gap-2 text-green-700 text-sm">
+                    <CheckCircle className="h-4 w-4" />
+                    Completed {detail.completedAt && new Date(detail.completedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                  </div>
+                )}
+
+                {/* Tasks */}
+                <div className="p-4 space-y-3">
+                  {tasks.map((task: any) => (
+                    <TaskFieldRenderer
+                      key={task.id}
+                      task={task}
+                      completion={completionMap.get(task.id)}
+                      onComplete={handleComplete}
+                      saving={savingTaskId === task.id}
+                    />
+                  ))}
+                  {tasks.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No tasks in this checklist. Add tasks in Admin → Checklists.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }

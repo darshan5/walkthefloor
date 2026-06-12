@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, ListChecks, Wrench, MessageSquare, LayoutDashboard } from "lucide-react";
+import { ClipboardCheck, ListChecks, Wrench, AlertTriangle, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Home", href: "/", icon: LayoutDashboard },
-  { label: "Checklists", href: "/checklists", icon: ClipboardCheck, appKey: "checklists" },
-  { label: "Audits", href: "/audits", icon: ListChecks, appKey: "audits" },
+  { label: "Book", href: "/checklists", icon: ClipboardCheck, appKey: "checklists" },
+  { label: "Tasks", href: "/checklists/tasks", icon: ListChecks, appKey: "checklists" },
+  { label: "CAs", href: "/checklists/corrective-actions", icon: AlertTriangle, appKey: "checklists" },
   { label: "Maintenance", href: "/maintenance", icon: Wrench, appKey: "maintenance" },
-  { label: "Guest Svc", href: "/guest-service", icon: MessageSquare, appKey: "guest_service" },
 ];
 
 type BottomNavProps = {
