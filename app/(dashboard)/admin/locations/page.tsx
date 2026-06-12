@@ -238,6 +238,19 @@ export default function LocationsPage() {
     }
   }
 
+  async function handleRenameEquipment(equipmentId: string, newName: string) {
+    if (!selectedId) return;
+    const res = await fetch(`/api/v1/locations/${selectedId}/equipment/${equipmentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instanceName: newName }),
+    });
+    if (res.ok) {
+      toast.success("Renamed");
+      fetchDetail(selectedId);
+    }
+  }
+
   async function handleRemoveEquipment(equipmentId: string) {
     if (!selectedId || !confirm("Remove this equipment?")) return;
     const res = await fetch(`/api/v1/locations/${selectedId}/equipment/${equipmentId}`, {
@@ -429,59 +442,47 @@ export default function LocationsPage() {
                         <Copy className="h-3.5 w-3.5" />
                         Clone
                       </Button>
+                      <Button size="sm" onClick={() => { setAddEquipTypeId(""); setAddEquipName(""); setAddEquipOpen(true); }} className="gap-1">
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Equipment
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Quantity controls per equipment type */}
-                  <div className="space-y-2">
-                    {equipTypes.map((et) => {
-                      const count = detail.locationEquipment.filter(
-                        (eq) => eq.equipmentType.id === et.id
-                      ).length;
-                      return (
-                        <div key={et.id} className="flex items-center justify-between rounded-lg border p-3">
-                          <div>
-                            <span className="font-medium text-sm">{et.name}</span>
-                            {et.category && (
-                              <span className="text-xs text-muted-foreground ml-2">{et.category}</span>
-                            )}
+                  {/* Equipment list with editable names */}
+                  {detail.locationEquipment.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                      No equipment assigned. Click &quot;Add Equipment&quot; to assign equipment from the catalog.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {detail.locationEquipment.map((eq) => (
+                        <div key={eq.id} className="flex items-center gap-3 rounded-lg border p-3">
+                          <div className="min-w-0 flex-1">
+                            <Input
+                              className="h-8 text-sm font-medium"
+                              defaultValue={eq.instanceName}
+                              onBlur={(e) => {
+                                if (e.target.value !== eq.instanceName && e.target.value.trim()) {
+                                  handleRenameEquipment(eq.id, e.target.value.trim());
+                                }
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {eq.equipmentType.name}
+                              {eq.equipmentType.category && ` · ${eq.equipmentType.category}`}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              disabled={count === 0}
-                              onClick={() => handleQuantityChange(et.id, count - 1)}
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </Button>
-                            <span className="w-8 text-center font-mono text-sm font-medium">{count}</span>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleQuantityChange(et.id, count + 1)}
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => handleRemoveEquipment(eq.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Instance names list */}
-                  {detail.locationEquipment.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs text-muted-foreground mb-2">Equipment instances:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {detail.locationEquipment.map((eq) => (
-                          <Badge key={eq.id} variant="outline" className="text-xs">
-                            {eq.instanceName}
-                          </Badge>
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   )}
                 </TabsContent>
@@ -558,12 +559,13 @@ export default function LocationsPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Instance Name</label>
+              <label className="text-sm font-medium">Label</label>
               <Input
-                placeholder="e.g., Walkin Freezer 1"
+                placeholder="e.g., Front Counter Refrigerator, Drive Thru Freezer"
                 value={addEquipName}
                 onChange={(e) => setAddEquipName(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">Give it a unique name to identify this specific unit at the location</p>
             </div>
           </div>
           <DialogFooter>
