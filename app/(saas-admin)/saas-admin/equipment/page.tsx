@@ -49,11 +49,14 @@ export default function SaasEquipmentPage() {
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [catName, setCatName] = useState("");
   const [catChecks, setCatChecks] = useState<string[]>([]);
-  const [tempMax, setTempMax] = useState("");
+  const [tempThreshold, setTempThreshold] = useState("");
+  const [tempDirection, setTempDirection] = useState("above");
   const [tempUnit, setTempUnit] = useState("F");
   const [calTarget, setCalTarget] = useState("");
   const [calTolerance, setCalTolerance] = useState("");
   const [calUnit, setCalUnit] = useState("g");
+  const [yesNoQuestion, setYesNoQuestion] = useState("");
+  const [yesNoExpected, setYesNoExpected] = useState("yes");
   const [saving, setSaving] = useState(false);
 
   // Type dialog
@@ -77,8 +80,9 @@ export default function SaasEquipmentPage() {
   // Category handlers
   function openCreateCat() {
     setEditingCat(null);
-    setCatName(""); setCatChecks(["temperature"]); setTempMax(""); setTempUnit("F");
+    setCatName(""); setCatChecks([]); setTempThreshold(""); setTempDirection("above"); setTempUnit("F");
     setCalTarget(""); setCalTolerance(""); setCalUnit("g");
+    setYesNoQuestion(""); setYesNoExpected("yes");
     setCatOpen(true);
   }
 
@@ -87,22 +91,42 @@ export default function SaasEquipmentPage() {
     setCatName(cat.name);
     setCatChecks(cat.checkTypes || []);
     const rules = cat.complianceRules || {};
-    setTempMax(rules.temperature?.maxTemp?.toString() || "");
+    setTempThreshold(rules.temperature?.threshold?.toString() || rules.temperature?.maxTemp?.toString() || "");
+    setTempDirection(rules.temperature?.direction || "above");
     setTempUnit(rules.temperature?.unit || "F");
     setCalTarget(rules.calibration?.target?.toString() || "");
     setCalTolerance(rules.calibration?.tolerance?.toString() || "");
     setCalUnit(rules.calibration?.unit || "g");
+    setYesNoQuestion(rules.yes_no?.question || "");
+    setYesNoExpected(rules.yes_no?.expectedAnswer || "yes");
     setCatOpen(true);
   }
 
   async function handleSaveCat() {
     setSaving(true);
     const complianceRules: any = {};
-    if (catChecks.includes("temperature") && tempMax) {
-      complianceRules.temperature = { maxTemp: parseFloat(tempMax), unit: tempUnit, label: "Temperature" };
+    if (catChecks.includes("temperature") && tempThreshold) {
+      complianceRules.temperature = {
+        threshold: parseFloat(tempThreshold),
+        direction: tempDirection,
+        unit: tempUnit,
+        label: "Temperature",
+      };
     }
     if (catChecks.includes("calibration") && calTarget) {
-      complianceRules.calibration = { target: parseFloat(calTarget), tolerance: parseFloat(calTolerance) || 1, unit: calUnit, label: "Calibration" };
+      complianceRules.calibration = {
+        target: parseFloat(calTarget),
+        tolerance: parseFloat(calTolerance) || 1,
+        unit: calUnit,
+        label: "Calibration",
+      };
+    }
+    if (catChecks.includes("yes_no") && yesNoQuestion) {
+      complianceRules.yes_no = {
+        question: yesNoQuestion,
+        expectedAnswer: yesNoExpected,
+        label: "Yes/No Check",
+      };
     }
 
     const url = editingCat ? `/api/saas-admin/equipment-categories/${editingCat.id}` : "/api/saas-admin/equipment-categories";
@@ -212,12 +236,20 @@ export default function SaasEquipmentPage() {
                   </div>
                   {cat.complianceRules && (
                     <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                      {(cat.complianceRules as any).temperature && (
-                        <p>Temp: flag if &gt; {(cat.complianceRules as any).temperature.maxTemp}°{(cat.complianceRules as any).temperature.unit}</p>
-                      )}
-                      {(cat.complianceRules as any).calibration && (
-                        <p>Calibration: target {(cat.complianceRules as any).calibration.target}{(cat.complianceRules as any).calibration.unit} ±{(cat.complianceRules as any).calibration.tolerance}{(cat.complianceRules as any).calibration.unit}</p>
-                      )}
+                      {(cat.complianceRules as any).temperature && (() => {
+                        const r = (cat.complianceRules as any).temperature;
+                        const dir = r.direction === "below" ? "<" : ">";
+                        const val = r.threshold ?? r.maxTemp;
+                        return <p>Temp: flag if {dir} {val}°{r.unit}</p>;
+                      })()}
+                      {(cat.complianceRules as any).calibration && (() => {
+                        const r = (cat.complianceRules as any).calibration;
+                        return <p>Calibration: {r.target}{r.unit} ±{r.tolerance}{r.unit}</p>;
+                      })()}
+                      {(cat.complianceRules as any).yes_no && (() => {
+                        const r = (cat.complianceRules as any).yes_no;
+                        return <p>Q: &ldquo;{r.question}&rdquo; (expected: {r.expectedAnswer})</p>;
+                      })()}
                     </div>
                   )}
                 </CardContent>
@@ -305,10 +337,17 @@ export default function SaasEquipmentPage() {
                 <label className="text-sm font-medium flex items-center gap-1.5">
                   <Thermometer className="h-4 w-4" /> Temperature Rule
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Flag if above</label>
-                    <Input type="number" placeholder="e.g., 0" value={tempMax} onChange={(e) => setTempMax(e.target.value)} />
+                    <label className="text-xs text-muted-foreground">Flag if</label>
+                    <select className="w-full rounded-md border px-3 py-2 text-sm" value={tempDirection} onChange={(e) => setTempDirection(e.target.value)}>
+                      <option value="above">Greater than</option>
+                      <option value="below">Less than</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Threshold</label>
+                    <Input type="number" placeholder="e.g., 0" value={tempThreshold} onChange={(e) => setTempThreshold(e.target.value)} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Unit</label>
@@ -340,7 +379,27 @@ export default function SaasEquipmentPage() {
                     <Input placeholder="e.g., g" value={calUnit} onChange={(e) => setCalUnit(e.target.value)} />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Flag if reading is not within target ± tolerance</p>
+                <p className="text-xs text-muted-foreground">Flag if reading is outside target ± tolerance range</p>
+              </div>
+            )}
+
+            {catChecks.includes("yes_no") && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4" /> Yes/No Check
+                </label>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Question</label>
+                  <Input placeholder="e.g., Is equipment clean and sanitized?" value={yesNoQuestion} onChange={(e) => setYesNoQuestion(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Expected answer (compliant)</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={yesNoExpected} onChange={(e) => setYesNoExpected(e.target.value)}>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground">Flag if answer does not match expected</p>
               </div>
             )}
           </div>
@@ -375,15 +434,13 @@ export default function SaasEquipmentPage() {
               {typeCatId && (() => {
                 const cat = categories.find((c) => c.id === typeCatId);
                 if (!cat) return null;
+                const rules = cat.complianceRules as any;
                 return (
                   <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
                     <p>Checks: {(cat.checkTypes as string[]).join(", ")}</p>
-                    {(cat.complianceRules as any).temperature && (
-                      <p>Temp: flag if &gt; {(cat.complianceRules as any).temperature.maxTemp}°{(cat.complianceRules as any).temperature.unit}</p>
-                    )}
-                    {(cat.complianceRules as any).calibration && (
-                      <p>Cal: {(cat.complianceRules as any).calibration.target} ±{(cat.complianceRules as any).calibration.tolerance}{(cat.complianceRules as any).calibration.unit}</p>
-                    )}
+                    {rules.temperature && <p>Temp: flag if {rules.temperature.direction === "below" ? "<" : ">"} {rules.temperature.threshold ?? rules.temperature.maxTemp}°{rules.temperature.unit}</p>}
+                    {rules.calibration && <p>Cal: {rules.calibration.target} ±{rules.calibration.tolerance}{rules.calibration.unit}</p>}
+                    {rules.yes_no && <p>Q: &ldquo;{rules.yes_no.question}&rdquo;</p>}
                   </div>
                 );
               })()}
