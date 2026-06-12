@@ -12,11 +12,12 @@ type Task = {
   title: string;
   taskType: string;
   config: any;
-  equipmentType: { id: string; name: string } | null;
+  equipmentType?: { id: string; name: string } | null;
+  locationEquipment?: { instanceName: string; equipmentType: { name: string } } | null;
   isRequired: boolean;
   isCritical: boolean;
   requiresPhoto: boolean;
-  helpText: string | null;
+  helpText?: string | null;
 };
 
 type Completion = {
@@ -60,8 +61,10 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving }: Task
             </span>
             {task.isCritical && <Badge variant="destructive" className="text-[10px] px-1 py-0">Critical</Badge>}
           </div>
-          {task.equipmentType && (
-            <p className="text-xs text-muted-foreground mt-0.5">{task.equipmentType.name}</p>
+          {(task.locationEquipment || task.equipmentType) && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {task.locationEquipment?.equipmentType?.name || task.equipmentType?.name}
+            </p>
           )}
           {task.config?.min != null && task.config?.max != null && (
             <p className="text-xs text-muted-foreground">

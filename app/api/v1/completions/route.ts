@@ -5,9 +5,8 @@ import { z } from "zod";
 
 const completionSchema = z.object({
   instanceId: z.string().min(1),
-  taskId: z.string().min(1),
+  instanceTaskId: z.string().min(1),
   value: z.any(),
-  locationEquipmentId: z.string().optional(),
   photoUrls: z.array(z.string()).optional(),
   signatureUrl: z.string().optional(),
   notes: z.string().optional(),
@@ -21,12 +20,11 @@ export const POST = withAuth(async (req, _ctx, user) => {
   try {
     const completion = await completeTask(
       parsed.data.instanceId,
-      parsed.data.taskId,
+      parsed.data.instanceTaskId,
       user.id,
       user.organizationId,
       {
         value: parsed.data.value,
-        locationEquipmentId: parsed.data.locationEquipmentId,
         photoUrls: parsed.data.photoUrls,
         signatureUrl: parsed.data.signatureUrl,
         notes: parsed.data.notes,

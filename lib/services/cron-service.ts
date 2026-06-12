@@ -7,7 +7,12 @@ export async function generateChecklistInstances() {
       id: true,
       schedule: true,
       organizationId: true,
+      categoryFilters: true,
       locationAssignments: { select: { locationId: true } },
+      tasks: {
+        where: { equipmentTypeId: null },
+        select: { id: true, title: true, taskType: true, config: true, isRequired: true, isCritical: true, requiresPhoto: true, sortOrder: true },
+      },
     },
   });
 
@@ -40,7 +45,7 @@ export async function generateChecklistInstances() {
 
       for (const window of windows) {
         try {
-          await prisma.checklistInstance.create({
+          const instance = await prisma.checklistInstance.create({
             data: {
               templateId: template.id,
               locationId: location.id,
@@ -50,6 +55,8 @@ export async function generateChecklistInstances() {
               windowEnd: window.endDate,
             },
           });
+
+          await generateInstanceTasks(instance.id, template, locId);
           created++;
         } catch (e: any) {
           if (e.code !== "P2002") throw e;
@@ -74,6 +81,104 @@ function getStoreHoursForDay(
   }
 
   return { open: "05:00", close: "23:00" };
+}
+
+async function generateInstanceTasks(instanceId: string, template: any, locationId: string) {
+  const categoryFilters = (template.categoryFilters as any[]) || [];
+  let sortOrder = 0;
+
+  if (categoryFilters.length > 0) {
+    const categoryIds = categoryFilters.map((f: any) => f.categoryId);
+
+    const equipment = await prisma.locationEquipment.findMany({
+      where: {
+        locationId,
+        isActive: true,
+        equipmentType: { categoryId: { in: categoryIds } },
+      },
+      include: {
+        equipmentType: {
+          include: { equipmentCategory: true },
+        },
+      },
+      orderBy: [{ equipmentType: { name: "asc" } }, { sortOrder: "asc" }],
+    });
+
+    for (const eq of equipment) {
+      const cat = eq.equipmentType.equipmentCategory;
+      if (!cat) continue;
+
+      const filter = categoryFilters.find((f: any) => f.categoryId === cat.id);
+      if (!filter) continue;
+
+      const checkTypes = filter.checkTypes || (cat.checkTypes as string[]);
+      const rules = cat.complianceRules as any;
+
+      for (const checkType of checkTypes) {
+        const rule = rules[checkType];
+        let taskType: string = "TEMPERATURE";
+        let config: any = {};
+        let title = eq.instanceName;
+
+        if (checkType === "temperature") {
+          taskType = "TEMPERATURE";
+          title = `${eq.instanceName} — Temperature`;
+          if (rule) {
+            const threshold = rule.threshold ?? rule.maxTemp;
+            if (rule.direction === "below") {
+              config = { min: threshold, max: 999, target: threshold, unit: rule.unit || "F" };
+            } else {
+              config = { min: -999, max: threshold, target: threshold, unit: rule.unit || "F" };
+            }
+          }
+        } else if (checkType === "calibration") {
+          taskType = "NUMERIC";
+          title = `${eq.instanceName} — Calibration`;
+          if (rule) {
+            config = {
+              min: rule.target - rule.tolerance,
+              max: rule.target + rule.tolerance,
+              target: rule.target,
+              unit: rule.unit || "",
+            };
+          }
+        } else if (checkType === "yes_no") {
+          taskType = "YES_NO";
+          title = rule?.question || `${eq.instanceName} — Check`;
+          config = { expectedAnswer: rule?.expectedAnswer || "yes" };
+        }
+
+        await prisma.instanceTask.create({
+          data: {
+            instanceId,
+            locationEquipmentId: eq.id,
+            title,
+            taskType: taskType as any,
+            config,
+            isRequired: true,
+            isCritical: checkType === "temperature",
+            sortOrder: sortOrder++,
+          },
+        });
+      }
+    }
+  }
+
+  for (const task of template.tasks || []) {
+    await prisma.instanceTask.create({
+      data: {
+        instanceId,
+        sourceTaskId: task.id,
+        title: task.title,
+        taskType: task.taskType,
+        config: task.config,
+        isRequired: task.isRequired,
+        isCritical: task.isCritical,
+        requiresPhoto: task.requiresPhoto,
+        sortOrder: sortOrder++,
+      },
+    });
+  }
 }
 
 function shouldGenerateToday(schedule: any, today: Date): boolean {

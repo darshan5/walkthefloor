@@ -213,6 +213,7 @@ model LocationEquipment {
   installDate     DateTime?
   warrantyExpiry  DateTime?
   workOrders      WorkOrder[]
+  instanceTasks   InstanceTask[]
   createdAt       DateTime      @default(now())
 
   @@index([locationId])
@@ -230,6 +231,11 @@ model ChecklistTemplate {
   isBuiltIn          Boolean                  @default(false)
   isCustom           Boolean                  @default(false)
   schedule           Json
+  categoryFilters    Json                     @default("[]")
+  // categoryFilters: [{ categoryId: "...", checkTypes: ["temperature", "calibration"] }]
+  // Determines which equipment + checks this template covers.
+  // At cron time, equipment at each location is filtered by these categories,
+  // and tasks are generated per equipment per included checkType.
   isActive           Boolean                  @default(true)
   version            Int                      @default(1)
   organizationId     String
@@ -276,6 +282,7 @@ model ChecklistTask {
   requiresSignature Boolean           @default(false)
   helpText          String?
   completions       TaskCompletion[]
+  instanceTasks     InstanceTask[]
 
   @@index([templateId])
   @@index([equipmentTypeId])
@@ -305,6 +312,7 @@ model ChecklistInstance {
   status            InstanceStatus     @default(PENDING)
   isCompliant       Boolean?
   completedAt       DateTime?
+  instanceTasks     InstanceTask[]
   completions       TaskCompletion[]
   complianceFailure ComplianceFailure?
   createdAt         DateTime           @default(now())
@@ -312,6 +320,26 @@ model ChecklistInstance {
   @@unique([templateId, locationId, date, windowLabel])
   @@index([locationId, date])
   @@index([status])
+}
+
+model InstanceTask {
+  id                  String             @id @default(cuid())
+  instanceId          String
+  instance            ChecklistInstance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  locationEquipmentId String?
+  locationEquipment   LocationEquipment?  @relation(fields: [locationEquipmentId], references: [id])
+  sourceTaskId        String?
+  sourceTask          ChecklistTask?      @relation(fields: [sourceTaskId], references: [id])
+  title               String
+  taskType            TaskType
+  config              Json                @default("{}")
+  isRequired          Boolean             @default(true)
+  isCritical          Boolean             @default(false)
+  requiresPhoto       Boolean             @default(false)
+  sortOrder           Int                 @default(0)
+  completions         TaskCompletion[]
+
+  @@index([instanceId])
 }
 
 enum InstanceStatus {
@@ -352,8 +380,10 @@ model TaskCompletion {
   id                  String            @id @default(cuid())
   instanceId          String
   instance            ChecklistInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  taskId              String
-  task                ChecklistTask     @relation(fields: [taskId], references: [id])
+  taskId              String?
+  task                ChecklistTask?    @relation(fields: [taskId], references: [id])
+  instanceTaskId      String?
+  instanceTask        InstanceTask?     @relation(fields: [instanceTaskId], references: [id])
   userId              String
   user                User              @relation(fields: [userId], references: [id])
   locationEquipmentId String?
@@ -366,6 +396,7 @@ model TaskCompletion {
   correctiveAction    CorrectiveAction?
 
   @@index([instanceId])
+  @@index([instanceTaskId])
 }
 
 model CorrectiveAction {

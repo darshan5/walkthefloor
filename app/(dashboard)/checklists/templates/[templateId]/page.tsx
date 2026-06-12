@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, MapPin, Box, Thermometer, Scale, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { ChecklistBuilder } from "@/components/forms/checklist-builder";
 
 type Template = {
@@ -21,12 +22,14 @@ type Template = {
   isBuiltIn: boolean;
   isActive: boolean;
   schedule: any;
+  categoryFilters: any[];
   version: number;
   tasks: any[];
 };
 
 type EquipmentType = { id: string; name: string; category: string | null };
 type Location = { id: string; name: string; storeNumber: string | null };
+type EqCategory = { id: string; name: string; checkTypes: string[]; complianceRules: any };
 type Assignment = { locationId: string; location: Location };
 
 const frequencies = [
@@ -44,6 +47,8 @@ export default function EditTemplatePage() {
   const templateId = params.templateId as string;
   const [template, setTemplate] = useState<Template | null>(null);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [eqCategories, setEqCategories] = useState<EqCategory[]>([]);
+  const [catFilters, setCatFilters] = useState<any[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,18 +71,21 @@ export default function EditTemplatePage() {
       setCategory(data.category || "");
       setAssignmentType(data.assignmentType || "book");
       setFrequency(data.schedule?.frequency || "daily");
+      setCatFilters(data.categoryFilters || []);
       setIsActive(data.isActive);
     }
     setLoading(false);
   }
 
   async function fetchAll() {
-    const [eRes, lRes, aRes] = await Promise.all([
+    const [eRes, cRes, lRes, aRes] = await Promise.all([
       fetch("/api/v1/equipment-types"),
+      fetch("/api/v1/equipment-categories"),
       fetch("/api/v1/locations"),
       fetch(`/api/v1/checklists/${templateId}/assignments`),
     ]);
     if (eRes.ok) setEquipmentTypes((await eRes.json()).data || []);
+    if (cRes.ok) setEqCategories((await cRes.json()).data || []);
     if (lRes.ok) setLocations((await lRes.json()).data || []);
     if (aRes.ok) setAssignments((await aRes.json()).data || []);
   }
@@ -99,6 +107,7 @@ export default function EditTemplatePage() {
         category: category || undefined,
         assignmentType,
         isActive,
+        categoryFilters: catFilters,
         ...scheduleUpdate,
       }),
     });
@@ -205,6 +214,93 @@ export default function EditTemplatePage() {
               </Button>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Equipment Categories — what equipment checks this template covers */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Box className="h-4 w-4" />
+            Equipment Categories
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Select which equipment categories this checklist covers. At each location, tasks will be auto-generated for every piece of equipment in the selected categories.
+          </p>
+          {eqCategories.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No equipment categories defined. Ask your platform administrator to set them up.</p>
+          ) : (
+            <div className="space-y-3">
+              {eqCategories.map((cat) => {
+                const filter = catFilters.find((f: any) => f.categoryId === cat.id);
+                const isSelected = !!filter;
+                const selectedChecks = filter?.checkTypes || [];
+                const rules = cat.complianceRules as any;
+
+                return (
+                  <div key={cat.id} className={cn("rounded-lg border p-3 transition-colors", isSelected && "border-primary bg-primary/5")}>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setCatFilters([...catFilters, { categoryId: cat.id, checkTypes: cat.checkTypes }]);
+                          } else {
+                            setCatFilters(catFilters.filter((f: any) => f.categoryId !== cat.id));
+                          }
+                          setDirty(true);
+                        }}
+                        className="rounded"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-sm">{cat.name}</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {(cat.checkTypes as string[]).map((ct) => (
+                            <Badge key={ct} variant="outline" className="text-[10px]">
+                              {ct === "temperature" ? "🌡️ Temperature" : ct === "calibration" ? "⚖️ Calibration" : "✅ Yes/No"}
+                            </Badge>
+                          ))}
+                        </div>
+                        {rules.temperature && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Temp: flag if {rules.temperature.direction === "below" ? "<" : ">"} {rules.temperature.threshold ?? rules.temperature.maxTemp}°{rules.temperature.unit}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+
+                    {isSelected && (cat.checkTypes as string[]).length > 1 && (
+                      <div className="mt-2 ml-7 flex flex-wrap gap-3">
+                        <span className="text-xs text-muted-foreground">Include:</span>
+                        {(cat.checkTypes as string[]).map((ct) => (
+                          <label key={ct} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedChecks.includes(ct)}
+                              onChange={(e) => {
+                                const updated = e.target.checked
+                                  ? [...selectedChecks, ct]
+                                  : selectedChecks.filter((c: string) => c !== ct);
+                                setCatFilters(catFilters.map((f: any) =>
+                                  f.categoryId === cat.id ? { ...f, checkTypes: updated } : f
+                                ));
+                                setDirty(true);
+                              }}
+                              className="rounded"
+                            />
+                            {ct}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

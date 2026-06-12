@@ -38,7 +38,7 @@ export async function getComplianceGrid(
 
   const byCategory = new Map<string, Map<string, any[]>>();
   for (const c of completions) {
-    const category = c.task.equipmentType?.category || c.task.equipmentType?.name || "General";
+    const category = c.task?.equipmentType?.category || c.task?.equipmentType?.name || "General";
     const dateKey = new Date(c.instance.date).toISOString().split("T")[0];
 
     if (!byCategory.has(category)) byCategory.set(category, new Map());

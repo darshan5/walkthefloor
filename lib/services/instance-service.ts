@@ -35,14 +35,13 @@ export async function getInstance(instanceId: string, organizationId: string) {
     },
     include: {
       template: {
+        select: { id: true, name: true, category: true, assignmentType: true },
+      },
+      instanceTasks: {
         include: {
-          tasks: {
-            include: {
-              equipmentType: { select: { id: true, name: true } },
-            },
-            orderBy: { sortOrder: "asc" },
-          },
+          locationEquipment: { select: { id: true, instanceName: true, equipmentType: { select: { name: true } } } },
         },
+        orderBy: { sortOrder: "asc" },
       },
       location: { select: { id: true, name: true, timezone: true } },
       completions: {
@@ -57,12 +56,11 @@ export async function getInstance(instanceId: string, organizationId: string) {
 
 export async function completeTask(
   instanceId: string,
-  taskId: string,
+  instanceTaskId: string,
   userId: string,
   organizationId: string,
   data: {
     value: any;
-    locationEquipmentId?: string;
     photoUrls?: string[];
     signatureUrl?: string;
     notes?: string;
@@ -70,20 +68,16 @@ export async function completeTask(
 ) {
   const instance = await prisma.checklistInstance.findFirst({
     where: { id: instanceId, location: { organizationId } },
-    include: {
-      template: {
-        include: { tasks: true },
-      },
-    },
+    include: { instanceTasks: true },
   });
   if (!instance) throw new Error("Instance not found");
   if (instance.status === "MISSED") throw new Error("Cannot complete a missed checklist");
 
-  const task = instance.template.tasks.find((t) => t.id === taskId);
+  const task = instance.instanceTasks.find((t) => t.id === instanceTaskId);
   if (!task) throw new Error("Task not found in this checklist");
 
   const existing = await prisma.taskCompletion.findFirst({
-    where: { instanceId, taskId },
+    where: { instanceId, instanceTaskId },
   });
   if (existing) {
     return prisma.taskCompletion.update({
@@ -106,11 +100,11 @@ export async function completeTask(
   const completion = await prisma.taskCompletion.create({
     data: {
       instanceId,
-      taskId,
+      instanceTaskId,
       userId,
       value: data.value,
       isCompliant,
-      locationEquipmentId: data.locationEquipmentId,
+      locationEquipmentId: task.locationEquipmentId,
       photoUrls: data.photoUrls || [],
       signatureUrl: data.signatureUrl,
       notes: data.notes,
@@ -129,15 +123,12 @@ export async function completeTask(
     await createCorrectiveAction(completion.id, instance, task, data.value, userId);
   }
 
-  const totalRequired = instance.template.tasks.filter((t) => t.isRequired).length;
+  const totalRequired = instance.instanceTasks.filter((t) => t.isRequired).length;
   const completedCount = await prisma.taskCompletion.count({
-    where: {
-      instanceId,
-      task: { isRequired: true },
-    },
+    where: { instanceId, instanceTask: { isRequired: true } },
   });
 
-  if (completedCount >= totalRequired) {
+  if (completedCount >= totalRequired && totalRequired > 0) {
     const now = new Date();
     const isLate = instance.windowEnd && now > instance.windowEnd;
     await prisma.checklistInstance.update({

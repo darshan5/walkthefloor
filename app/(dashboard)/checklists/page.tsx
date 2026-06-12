@@ -71,7 +71,7 @@ export default function BookPage() {
     const res = await fetch("/api/v1/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instanceId: detail.id, taskId, value }),
+      body: JSON.stringify({ instanceId: detail.id, instanceTaskId: taskId, value }),
     });
     setSavingTaskId(null);
     if (res.ok) {
@@ -89,8 +89,8 @@ export default function BookPage() {
   const missedCount = instances.filter((i) => i.status === "MISSED").length;
   const completedCount = instances.filter((i) => i.status === "COMPLETED" || i.status === "COMPLETED_LATE").length;
 
-  const completionMap = detail ? new Map(detail.completions.map((c: any) => [c.taskId, c])) : new Map();
-  const tasks = detail?.template?.tasks || [];
+  const completionMap = detail ? new Map(detail.completions.map((c: any) => [c.instanceTaskId || c.taskId, c])) : new Map();
+  const tasks = (detail as any)?.instanceTasks || [];
   const requiredTasks = tasks.filter((t: any) => t.isRequired);
   const completedRequired = requiredTasks.filter((t: any) => completionMap.has(t.id));
 

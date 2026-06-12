@@ -55,6 +55,10 @@ export const updateTemplateSchema = z.object({
   category: z.string().max(50).optional(),
   assignmentType: z.enum(["book", "task"]).optional(),
   schedule: scheduleSchema.optional(),
+  categoryFilters: z.array(z.object({
+    categoryId: z.string(),
+    checkTypes: z.array(z.string()),
+  })).optional(),
   isActive: z.boolean().optional(),
 });
 

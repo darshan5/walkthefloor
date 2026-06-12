@@ -43,11 +43,13 @@ export async function updateTemplate(id: string, organizationId: string, data: U
   const existing = await prisma.checklistTemplate.findFirst({ where: { id, organizationId } });
   if (!existing) throw new Error("Template not found");
 
+  const { categoryFilters, ...rest } = data;
   return prisma.checklistTemplate.update({
     where: { id },
     data: {
-      ...data,
+      ...rest,
       schedule: data.schedule ? (data.schedule as any) : undefined,
+      ...(categoryFilters !== undefined && { categoryFilters: categoryFilters as any }),
       version: { increment: 1 },
     },
   });
