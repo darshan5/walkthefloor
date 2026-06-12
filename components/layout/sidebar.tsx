@@ -51,7 +51,6 @@ const navItems: NavItem[] = [
     children: [
       { label: "Organization", href: "/admin/organization" },
       { label: "Locations", href: "/admin/locations" },
-      { label: "Equipment", href: "/admin/equipment" },
       { label: "Checklists", href: "/checklists/templates" },
       { label: "Users", href: "/admin/users" },
       { label: "Shifts", href: "/admin/shifts" },

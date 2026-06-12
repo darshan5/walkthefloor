@@ -265,84 +265,142 @@ export function ChecklistBuilder({ templateId, tasks, equipmentTypes, onTasksCha
             <DialogTitle>{editingTask ? "Edit Task" : "Add Task"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {/* Task Category: Equipment or Question */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <Input placeholder="e.g., Walkin Freezer Temperature" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Task Type</label>
-                <select className="w-full rounded-md border px-3 py-2 text-sm" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-                  {Object.entries(taskTypeLabels).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Equipment Type</label>
-                <select className="w-full rounded-md border px-3 py-2 text-sm" value={equipmentTypeId} onChange={(e) => setEquipmentTypeId(e.target.value)}>
-                  <option value="">None</option>
-                  {equipmentTypes.map((et) => (
-                    <option key={et.id} value={et.id}>{et.name}</option>
-                  ))}
-                </select>
+              <label className="text-sm font-medium">Task Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setTaskType("TEMPERATURE"); setEquipmentTypeId(equipmentTypes[0]?.id || ""); }}
+                  className={cn("rounded-lg border p-3 text-left transition-colors", equipmentTypeId ? "border-primary bg-primary/5" : "hover:bg-accent")}
+                >
+                  <p className="font-medium text-sm">Equipment</p>
+                  <p className="text-xs text-muted-foreground">Temperature, calibration check</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTaskType("YES_NO"); setEquipmentTypeId(""); }}
+                  className={cn("rounded-lg border p-3 text-left transition-colors", !equipmentTypeId && taskType === "YES_NO" ? "border-primary bg-primary/5" : "hover:bg-accent")}
+                >
+                  <p className="font-medium text-sm">Question</p>
+                  <p className="text-xs text-muted-foreground">Yes/No, text answer</p>
+                </button>
               </div>
             </div>
 
-            {(taskType === "TEMPERATURE" || taskType === "NUMERIC") && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Compliant Range</label>
-                <div className="grid grid-cols-4 gap-2">
-                  <Input placeholder="Min" type="number" value={configMin} onChange={(e) => setConfigMin(e.target.value)} />
-                  <Input placeholder="Max" type="number" value={configMax} onChange={(e) => setConfigMax(e.target.value)} />
-                  <Input placeholder="Target" type="number" value={configTarget} onChange={(e) => setConfigTarget(e.target.value)} />
-                  {taskType === "TEMPERATURE" && (
-                    <select className="w-full rounded-md border px-3 py-2 text-sm" value={configUnit} onChange={(e) => setConfigUnit(e.target.value)}>
-                      <option value="F">°F</option>
-                      <option value="C">°C</option>
-                    </select>
-                  )}
+            {/* Equipment mode */}
+            {equipmentTypeId || (taskType === "TEMPERATURE" && equipmentTypes.length > 0) ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Equipment</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={equipmentTypeId} onChange={(e) => {
+                    setEquipmentTypeId(e.target.value);
+                    const et = equipmentTypes.find((t) => t.id === e.target.value);
+                    if (et) setTitle(et.name);
+                  }}>
+                    <option value="">Select equipment...</option>
+                    {equipmentTypes.map((et) => (
+                      <option key={et.id} value={et.id}>{et.name} {et.category && `(${et.category})`}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title</label>
+                  <Input placeholder="e.g., Walkin Freezer Temperature" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Reading Type</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+                    <option value="TEMPERATURE">Temperature</option>
+                    <option value="NUMERIC">Numeric / Calibration</option>
+                  </select>
+                </div>
+
+                {(taskType === "TEMPERATURE" || taskType === "NUMERIC") && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Compliant Range</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      <Input placeholder="Min" type="number" value={configMin} onChange={(e) => setConfigMin(e.target.value)} />
+                      <Input placeholder="Max" type="number" value={configMax} onChange={(e) => setConfigMax(e.target.value)} />
+                      <Input placeholder="Target" type="number" value={configTarget} onChange={(e) => setConfigTarget(e.target.value)} />
+                      {taskType === "TEMPERATURE" && (
+                        <select className="w-full rounded-md border px-3 py-2 text-sm" value={configUnit} onChange={(e) => setConfigUnit(e.target.value)}>
+                          <option value="F">°F</option>
+                          <option value="C">°C</option>
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} className="rounded" />
+                    Required
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isCritical} onChange={(e) => setIsCritical(e.target.checked)} className="rounded" />
+                    Notification
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={requiresPhoto} onChange={(e) => setRequiresPhoto(e.target.checked)} className="rounded" />
+                    Require Photo
+                  </label>
+                </div>
+              </>
+            ) : (
+              /* Question mode */
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Question</label>
+                  <Input placeholder="e.g., Is equipment clean and sanitized?" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Answer Type</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+                    <option value="YES_NO">Yes / No</option>
+                    <option value="TEXT">Text Answer</option>
+                    <option value="SELECT">Multiple Choice</option>
+                  </select>
+                </div>
+
+                {taskType === "YES_NO" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Expected Answer</label>
+                    <select className="w-full rounded-md border px-3 py-2 text-sm" value={configExpected} onChange={(e) => setConfigExpected(e.target.value)}>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">Flagged if answer doesn&apos;t match</p>
+                  </div>
+                )}
+
+                {taskType === "SELECT" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Choices (comma-separated)</label>
+                    <Input placeholder="Clean, Dirty, N/A" value={configChoices} onChange={(e) => setConfigChoices(e.target.value)} />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} className="rounded" />
+                    Required
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isCritical} onChange={(e) => setIsCritical(e.target.checked)} className="rounded" />
+                    Notification
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={requiresPhoto} onChange={(e) => setRequiresPhoto(e.target.checked)} className="rounded" />
+                    Require Photo
+                  </label>
+                </div>
+              </>
             )}
-
-            {taskType === "YES_NO" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Expected Answer</label>
-                <select className="w-full rounded-md border px-3 py-2 text-sm" value={configExpected} onChange={(e) => setConfigExpected(e.target.value)}>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
-            )}
-
-            {(taskType === "SELECT" || taskType === "MULTI_SELECT") && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Choices (comma-separated)</label>
-                <Input placeholder="Clean, Dirty, N/A" value={configChoices} onChange={(e) => setConfigChoices(e.target.value)} />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Scheduled Time (optional)</label>
-              <Input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} className="rounded" />
-                Required
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isCritical} onChange={(e) => setIsCritical(e.target.checked)} className="rounded" />
-                Critical (triggers email/SMS)
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={requiresPhoto} onChange={(e) => setRequiresPhoto(e.target.checked)} className="rounded" />
-                Requires Photo
-              </label>
-            </div>
           </div>
           <DialogFooter>
             <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
