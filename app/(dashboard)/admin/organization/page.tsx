@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, MapPin, Box } from "lucide-react";
+import { Building2, Users, MapPin, Box, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type OrgData = {
@@ -242,6 +242,37 @@ export default function OrganizationPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Danger Zone */}
+      <Card className="border-red-200">
+        <CardHeader><CardTitle className="text-base text-destructive">Danger Zone</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Clear All Corrective Actions</p>
+              <p className="text-xs text-muted-foreground">Permanently delete all corrective actions and their comments. This cannot be undone.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-destructive border-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                if (!confirm("Clear ALL corrective actions? This cannot be undone.")) return;
+                const res = await fetch("/api/v1/corrective-actions/clear", { method: "POST" });
+                if (res.ok) {
+                  const { data } = await res.json();
+                  toast.success(`Cleared ${data.cleared} corrective actions`);
+                } else {
+                  toast.error("Failed to clear");
+                }
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear All
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
