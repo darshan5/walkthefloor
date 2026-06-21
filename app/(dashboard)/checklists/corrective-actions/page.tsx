@@ -15,7 +15,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/data/status-badge";
-import { AlertTriangle, MapPin, Clock, MessageSquare, Send } from "lucide-react";
+import { AlertTriangle, MapPin, Clock, MessageSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDateTime, getInitials } from "@/lib/utils";
 
@@ -105,16 +105,36 @@ export default function CorrectiveActionsPage() {
     }
   }
 
+  async function handleClearAll() {
+    if (!confirm("Clear ALL corrective actions? This cannot be undone.")) return;
+    const res = await fetch("/api/v1/corrective-actions/clear", { method: "POST" });
+    if (res.ok) {
+      const { data } = await res.json();
+      toast.success(`Cleared ${data.cleared} corrective actions`);
+      fetchCAs();
+    } else {
+      toast.error("Failed to clear");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Corrective Actions</h1>
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="my">My</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          {cas.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleClearAll} className="gap-1 text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear All
+            </Button>
+          )}
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="my">My</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {loading ? (
