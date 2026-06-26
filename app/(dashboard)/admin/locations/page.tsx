@@ -24,7 +24,7 @@ import {
 // Using native <select> elements instead of Base UI Select for reliability
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, Pencil, Trash2, MapPin, Copy, Clock } from "lucide-react";
+import { Plus, Minus, Pencil, Trash2, MapPin, Copy, Clock, ShieldAlert } from "lucide-react";
 
 const US_TIMEZONES = [
   { value: "America/New_York", label: "Eastern (ET)" },
@@ -360,6 +360,7 @@ export default function LocationsPage() {
                   <TabsTrigger value="book">
                     Book ({detail.locationEquipment.length})
                   </TabsTrigger>
+                  <TabsTrigger value="actions">Actions</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="location" className="space-y-4">
@@ -485,6 +486,42 @@ export default function LocationsPage() {
                       ))}
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="actions" className="space-y-4">
+                  <div className="rounded-lg border border-red-200 p-4">
+                    <h3 className="text-sm font-medium text-destructive mb-1">Danger Zone</h3>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm">Clear Compliance Failures</p>
+                        <p className="text-xs text-muted-foreground">
+                          Delete all compliance failure records for this location. This cannot be undone.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-destructive border-destructive hover:bg-destructive/10 shrink-0"
+                        onClick={async () => {
+                          if (!confirm(`Clear all compliance failures for ${detail.name}? This cannot be undone.`)) return;
+                          const res = await fetch("/api/v1/compliance-failures/clear", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ locationId: detail.id }),
+                          });
+                          if (res.ok) {
+                            const { data } = await res.json();
+                            toast.success(`Cleared ${data.cleared} compliance failure${data.cleared !== 1 ? "s" : ""}`);
+                          } else {
+                            toast.error("Failed to clear compliance failures");
+                          }
+                        }}
+                      >
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
