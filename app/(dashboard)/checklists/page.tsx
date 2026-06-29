@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback, createRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/data/status-badge";
@@ -181,27 +181,81 @@ export default function BookPage() {
                 )}
 
                 {/* Tasks */}
-                <div className="p-4 space-y-3">
-                  {tasks.map((task: any) => (
-                    <TaskFieldRenderer
-                      key={task.id}
-                      task={task}
-                      completion={completionMap.get(task.id)}
-                      onComplete={handleComplete}
-                      saving={savingTaskId === task.id}
-                    />
-                  ))}
-                  {tasks.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No tasks in this checklist. Add tasks in Admin → Checklists.
-                    </p>
-                  )}
-                </div>
+                <TaskList
+                  tasks={tasks}
+                  completionMap={completionMap}
+                  onComplete={handleComplete}
+                  savingTaskId={savingTaskId}
+                />
               </CardContent>
             </Card>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function TaskList({
+  tasks,
+  completionMap,
+  onComplete,
+  savingTaskId,
+}: {
+  tasks: any[];
+  completionMap: Map<string, any>;
+  onComplete: (taskId: string, value: any) => Promise<void>;
+  savingTaskId: string | null;
+}) {
+  const inputRefs = useRef<Map<number, React.RefObject<HTMLInputElement | null>>>(new Map());
+  const taskDivRefs = useRef<Map<number, React.RefObject<HTMLDivElement | null>>>(new Map());
+
+  function getInputRef(idx: number) {
+    if (!inputRefs.current.has(idx)) inputRefs.current.set(idx, createRef());
+    return inputRefs.current.get(idx)!;
+  }
+
+  function getTaskDivRef(idx: number) {
+    if (!taskDivRefs.current.has(idx)) taskDivRefs.current.set(idx, createRef());
+    return taskDivRefs.current.get(idx)!;
+  }
+
+  const advanceTo = useCallback((nextIdx: number) => {
+    if (nextIdx >= tasks.length) return;
+    const divRef = taskDivRefs.current.get(nextIdx);
+    if (divRef?.current) {
+      divRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setTimeout(() => {
+      const ref = inputRefs.current.get(nextIdx);
+      if (ref?.current) ref.current.focus();
+    }, 100);
+  }, [tasks.length]);
+
+  if (tasks.length === 0) {
+    return (
+      <div className="p-4">
+        <p className="text-sm text-muted-foreground text-center py-4">
+          No tasks in this checklist. Add tasks in Admin → Checklists.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      {tasks.map((task: any, idx: number) => (
+        <div key={task.id} ref={getTaskDivRef(idx)}>
+          <TaskFieldRenderer
+            task={task}
+            completion={completionMap.get(task.id)}
+            onComplete={onComplete}
+            saving={savingTaskId === task.id}
+            onAdvance={() => advanceTo(idx + 1)}
+            inputRef={getInputRef(idx)}
+          />
+        </div>
+      ))}
     </div>
   );
 }

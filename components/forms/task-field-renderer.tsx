@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +33,11 @@ type TaskFieldRendererProps = {
   completion?: Completion;
   onComplete: (taskId: string, value: any) => Promise<void>;
   saving?: boolean;
+  onAdvance?: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 };
 
-export function TaskFieldRenderer({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+export function TaskFieldRenderer({ task, completion, onComplete, saving, onAdvance, inputRef }: TaskFieldRendererProps) {
   const isCompleted = !!completion;
   const isNonCompliant = completion && !completion.isCompliant;
 
@@ -82,7 +84,7 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving }: Task
       </div>
 
       <div className="mt-3">
-        <TaskInput task={task} completion={completion} onComplete={onComplete} saving={saving} />
+        <TaskInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} inputRef={inputRef} />
       </div>
 
       {isNonCompliant && (
@@ -95,32 +97,36 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving }: Task
   );
 }
 
-function TaskInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function TaskInput({ task, completion, onComplete, saving, onAdvance, inputRef }: TaskFieldRendererProps) {
   switch (task.taskType) {
     case "YES_NO":
-      return <YesNoInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+      return <YesNoInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} />;
     case "TEMPERATURE":
-      return <TemperatureInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+      return <TemperatureInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} inputRef={inputRef} />;
     case "NUMERIC":
-      return <NumericInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+      return <NumericInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} inputRef={inputRef} />;
     case "TEXT":
-      return <TextInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+      return <TextInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} inputRef={inputRef} />;
     case "SELECT":
-      return <SelectInput task={task} completion={completion} onComplete={onComplete} saving={saving} />;
+      return <SelectInput task={task} completion={completion} onComplete={onComplete} saving={saving} onAdvance={onAdvance} />;
     default:
       return <p className="text-sm text-muted-foreground">Unsupported type: {task.taskType}</p>;
   }
 }
 
-function YesNoInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function YesNoInput({ task, completion, onComplete, saving, onAdvance }: TaskFieldRendererProps) {
   const current = completion?.value?.answer;
+  async function handleClick(answer: boolean) {
+    await onComplete(task.id, { answer });
+    onAdvance?.();
+  }
   return (
     <div className="flex gap-2">
       <Button
         variant={current === true ? "default" : "outline"}
         size="sm"
         className="flex-1 touch-target"
-        onClick={() => onComplete(task.id, { answer: true })}
+        onClick={() => handleClick(true)}
         disabled={saving}
       >
         Yes
@@ -129,7 +135,7 @@ function YesNoInput({ task, completion, onComplete, saving }: TaskFieldRendererP
         variant={current === false ? "default" : "outline"}
         size="sm"
         className="flex-1 touch-target"
-        onClick={() => onComplete(task.id, { answer: false })}
+        onClick={() => handleClick(false)}
         disabled={saving}
       >
         No
@@ -138,22 +144,27 @@ function YesNoInput({ task, completion, onComplete, saving }: TaskFieldRendererP
   );
 }
 
-function TemperatureInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function TemperatureInput({ task, completion, onComplete, saving, onAdvance, inputRef }: TaskFieldRendererProps) {
   const [value, setValue] = useState(completion?.value?.temp?.toString() || "");
+  const localRef = useRef<HTMLInputElement>(null);
+  const ref = inputRef || localRef;
   const unit = task.config?.unit || "F";
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const num = parseFloat(value);
     if (isNaN(num)) return;
-    onComplete(task.id, { temp: num });
+    await onComplete(task.id, { temp: num });
+    onAdvance?.();
   }
 
   return (
     <div className="flex gap-2">
       <div className="relative flex-1">
         <Input
-          type="number"
-          step="0.1"
+          ref={ref}
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*\.?[0-9]*"
           placeholder={`°${unit}`}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -170,19 +181,24 @@ function TemperatureInput({ task, completion, onComplete, saving }: TaskFieldRen
   );
 }
 
-function NumericInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function NumericInput({ task, completion, onComplete, saving, onAdvance, inputRef }: TaskFieldRendererProps) {
   const [value, setValue] = useState(completion?.value?.value?.toString() || "");
+  const localRef = useRef<HTMLInputElement>(null);
+  const ref = inputRef || localRef;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const num = parseFloat(value);
     if (isNaN(num)) return;
-    onComplete(task.id, { value: num });
+    await onComplete(task.id, { value: num });
+    onAdvance?.();
   }
 
   return (
     <Input
-      type="number"
-      step="any"
+      ref={ref}
+      type="text"
+      inputMode="decimal"
+      pattern="[0-9]*\.?[0-9]*"
       placeholder="Enter value"
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -193,16 +209,20 @@ function NumericInput({ task, completion, onComplete, saving }: TaskFieldRendere
   );
 }
 
-function TextInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function TextInput({ task, completion, onComplete, saving, onAdvance, inputRef }: TaskFieldRendererProps) {
   const [value, setValue] = useState(completion?.value?.text || "");
+  const localRef = useRef<HTMLInputElement>(null);
+  const ref = inputRef || localRef;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!value.trim()) return;
-    onComplete(task.id, { text: value });
+    await onComplete(task.id, { text: value });
+    onAdvance?.();
   }
 
   return (
     <Input
+      ref={ref}
       placeholder="Enter text"
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -213,7 +233,7 @@ function TextInput({ task, completion, onComplete, saving }: TaskFieldRendererPr
   );
 }
 
-function SelectInput({ task, completion, onComplete, saving }: TaskFieldRendererProps) {
+function SelectInput({ task, completion, onComplete, saving, onAdvance }: TaskFieldRendererProps) {
   const choices = task.config?.choices || [];
   const current = completion?.value?.selected;
 
@@ -221,7 +241,11 @@ function SelectInput({ task, completion, onComplete, saving }: TaskFieldRenderer
     <select
       className="w-full rounded-md border px-3 py-2 text-sm"
       value={current || ""}
-      onChange={(e) => e.target.value && onComplete(task.id, { selected: e.target.value })}
+      onChange={async (e) => {
+        if (!e.target.value) return;
+        await onComplete(task.id, { selected: e.target.value });
+        onAdvance?.();
+      }}
       disabled={saving}
     >
       <option value="">Select...</option>
