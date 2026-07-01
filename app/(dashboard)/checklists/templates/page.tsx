@@ -13,9 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/data/status-badge";
+import { cn } from "@/lib/utils";
 
 type Template = {
   id: string;
@@ -57,6 +58,21 @@ export default function TemplatesPage() {
     const res = await fetch(`/api/v1/checklists/${t.id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Template deleted");
+      fetchTemplates();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleToggleActive(t: Template) {
+    const res = await fetch(`/api/v1/checklists/${t.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: !t.isActive }),
+    });
+    if (res.ok) {
+      toast.success(t.isActive ? `"${t.name}" disabled` : `"${t.name}" enabled`);
       fetchTemplates();
     } else {
       const { error } = await res.json();
@@ -135,12 +151,19 @@ export default function TemplatesPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleActive(t)}
+                          title={t.isActive ? "Disable" : "Enable"}
+                        >
+                          <Power className={cn("h-4 w-4", t.isActive ? "text-green-600" : "text-muted-foreground")} />
+                        </Button>
                         {!t.isBuiltIn && (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(t)}
-                            disabled={t._count.instances > 0}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
