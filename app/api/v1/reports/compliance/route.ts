@@ -1,6 +1,6 @@
 import { withAuth, apiSuccess } from "@/lib/api-utils";
 import { PERMISSIONS } from "@/lib/permissions";
-import { getComplianceGrid, getShiftCompliance } from "@/lib/services/compliance-service";
+import { getComplianceGrid, getCategoryCompliance } from "@/lib/services/compliance-service";
 
 export const GET = withAuth(async (req, _ctx, user) => {
   const { searchParams } = new URL(req.url);
@@ -14,8 +14,8 @@ export const GET = withAuth(async (req, _ctx, user) => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  if (view === "shift") {
-    const data = await getShiftCompliance(user.organizationId, locationId, startDate, endDate);
+  if (view === "category") {
+    const data = await getCategoryCompliance(user.organizationId, locationId, startDate, endDate);
     return apiSuccess(data);
   }
 

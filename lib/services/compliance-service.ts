@@ -116,7 +116,7 @@ export async function getTaskProgress(
     .sort((a, b) => a.weekEnding.localeCompare(b.weekEnding));
 }
 
-export async function getShiftCompliance(
+export async function getCategoryCompliance(
   organizationId: string,
   locationId: string,
   startDate: Date,

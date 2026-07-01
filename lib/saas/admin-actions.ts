@@ -86,14 +86,6 @@ export async function provisionOrganization(data: {
     roles[key] = role.id;
   }
 
-  await prisma.shift.createMany({
-    data: [
-      { name: "AM", startTime: "05:00", endTime: "13:00", organizationId: org.id },
-      { name: "PM", startTime: "13:00", endTime: "21:00", organizationId: org.id },
-      { name: "Overnight", startTime: "21:00", endTime: "05:00", organizationId: org.id },
-    ],
-  });
-
   const hashedPassword = await bcrypt.hash(data.adminPassword, 10);
   await prisma.user.create({
     data: {
@@ -212,7 +204,11 @@ export async function getSystemSettings() {
   return prisma.systemSettings.findUnique({ where: { id: "system" } });
 }
 
-export async function updateSystemSettings(data: { disableLogin?: boolean }) {
+export async function updateSystemSettings(data: {
+  disableLogin?: boolean;
+  complianceEarlyMinutes?: number;
+  complianceLateMinutes?: number;
+}) {
   return prisma.systemSettings.upsert({
     where: { id: "system" },
     update: data,

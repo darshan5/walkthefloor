@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ComplianceBar } from "@/components/data/compliance-bar";
 
-type ShiftData = {
+type CategoryData = {
   category: string;
   total: number;
   compliant: number;
@@ -12,11 +12,11 @@ type ShiftData = {
 };
 
 export default function CompliancePage() {
-  const [data, setData] = useState<ShiftData[]>([]);
+  const [data, setData] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/v1/reports/compliance?view=shift&days=30")
+    fetch("/api/v1/reports/compliance?view=category&days=30")
       .then((r) => r.json())
       .then(({ data }) => setData(data || []))
       .finally(() => setLoading(false));

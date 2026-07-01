@@ -28,6 +28,8 @@ export default function OrganizationPage() {
   const [defaultDueDays, setDefaultDueDays] = useState("2");
   const [retakeOnCA, setRetakeOnCA] = useState(false);
   const [timezone, setTimezone] = useState("America/New_York");
+  const [compEarly, setCompEarly] = useState("");
+  const [compLate, setCompLate] = useState("");
 
   async function fetchOrg() {
     const res = await fetch("/api/v1/organization");
@@ -42,6 +44,9 @@ export default function OrganizationPage() {
       setDefaultDueDays(String(book.ca?.defaultDueDays ?? 2));
       setRetakeOnCA(book.ca?.retakeReadingOnCA ?? false);
       setTimezone(s.general?.timezone ?? "America/New_York");
+      const comp = s.compliance || {};
+      setCompEarly(comp.earlyMinutes !== undefined ? String(comp.earlyMinutes) : "");
+      setCompLate(comp.lateMinutes !== undefined ? String(comp.lateMinutes) : "");
     }
     setLoading(false);
   }
@@ -141,6 +146,7 @@ export default function OrganizationPage() {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="book">Book / Checklists</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -237,6 +243,75 @@ export default function OrganizationPage() {
 
               <Button onClick={handleSaveBook} disabled={saving}>
                 {saving ? "Saving..." : "Save Book Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Compliance Window Override</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Override the platform default compliance windows for your organization. Leave as &quot;Use platform default&quot; to inherit the SaaS-level setting.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Early Window</label>
+                  <select
+                    className="w-full rounded-md border px-3 py-2 text-sm"
+                    value={compEarly}
+                    onChange={(e) => setCompEarly(e.target.value)}
+                  >
+                    <option value="">Use platform default</option>
+                    <option value="0">No early window</option>
+                    <option value="5">5 minutes</option>
+                    <option value="10">10 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">How early before the window opens a checklist can be started</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Late Window</label>
+                  <select
+                    className="w-full rounded-md border px-3 py-2 text-sm"
+                    value={compLate}
+                    onChange={(e) => setCompLate(e.target.value)}
+                  >
+                    <option value="">Use platform default</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                    <option value="240">4 hours</option>
+                    <option value="480">8 hours</option>
+                    <option value="720">12 hours</option>
+                    <option value="1440">1 day</option>
+                    <option value="2880">2 days</option>
+                    <option value="4320">3 days</option>
+                    <option value="10080">1 week</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">How long after the window closes before it&apos;s marked as missed</p>
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  setSaving(true);
+                  const compliance: any = {};
+                  if (compEarly !== "") compliance.earlyMinutes = parseInt(compEarly);
+                  if (compLate !== "") compliance.lateMinutes = parseInt(compLate);
+                  const res = await fetch("/api/v1/organization", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ settings: { compliance: Object.keys(compliance).length > 0 ? compliance : null } }),
+                  });
+                  setSaving(false);
+                  if (res.ok) { toast.success("Compliance settings saved"); fetchOrg(); }
+                  else { const { error } = await res.json(); toast.error(error); }
+                }}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Compliance Settings"}
               </Button>
             </CardContent>
           </Card>

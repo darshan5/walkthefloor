@@ -60,14 +60,6 @@ export async function POST(req: Request) {
       },
     });
 
-    await prisma.shift.createMany({
-      data: [
-        { name: "AM", startTime: "05:00", endTime: "13:00", organizationId: org.id },
-        { name: "PM", startTime: "13:00", endTime: "21:00", organizationId: org.id },
-        { name: "Overnight", startTime: "21:00", endTime: "05:00", organizationId: org.id },
-      ],
-    });
-
     const equipmentTypes = await Promise.all(
       [
         { name: "Walkin Freezer", category: "Refrigeration" },

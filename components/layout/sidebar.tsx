@@ -53,7 +53,6 @@ const navItems: NavItem[] = [
       { label: "Locations", href: "/admin/locations" },
       { label: "Checklists", href: "/checklists/templates" },
       { label: "Users", href: "/admin/users" },
-      { label: "Shifts", href: "/admin/shifts" },
       { label: "Roles", href: "/admin/roles" },
       { label: "Devices", href: "/admin/devices" },
     ],

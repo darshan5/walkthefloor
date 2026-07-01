@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 
 export async function generateChecklistInstances() {
+  const systemSettings = await prisma.systemSettings.findUnique({ where: { id: "system" } });
+  const defaultEarlyMinutes = systemSettings?.complianceEarlyMinutes ?? 60;
+
   const templates = await prisma.checklistTemplate.findMany({
     where: { isActive: true },
     select: {
@@ -23,6 +26,13 @@ export async function generateChecklistInstances() {
 
   const locationMap = new Map(locations.map((l) => [l.id, l]));
 
+  const orgIds = [...new Set(templates.map((t) => t.organizationId))];
+  const orgs = await prisma.organization.findMany({
+    where: { id: { in: orgIds } },
+    select: { id: true, settings: true },
+  });
+  const orgSettingsMap = new Map(orgs.map((o) => [o.id, o.settings as any]));
+
   let created = 0;
 
   for (const template of templates) {
@@ -30,6 +40,9 @@ export async function generateChecklistInstances() {
     const assignedLocationIds = template.locationAssignments.map((a) => a.locationId);
 
     if (assignedLocationIds.length === 0) continue;
+
+    const orgSettings = orgSettingsMap.get(template.organizationId) || {};
+    const earlyMinutes = orgSettings?.compliance?.earlyMinutes ?? defaultEarlyMinutes;
 
     for (const locId of assignedLocationIds) {
       const location = locationMap.get(locId);
@@ -44,6 +57,7 @@ export async function generateChecklistInstances() {
       const windows = generateWindows(schedule, today, storeHours);
 
       for (const window of windows) {
+        const adjustedStart = new Date(window.startDate.getTime() - earlyMinutes * 60 * 1000);
         try {
           const instance = await prisma.checklistInstance.create({
             data: {
@@ -51,7 +65,7 @@ export async function generateChecklistInstances() {
               locationId: location.id,
               date: today,
               windowLabel: window.label || `${window.start}-${window.end}`,
-              windowStart: window.startDate,
+              windowStart: adjustedStart,
               windowEnd: window.endDate,
             },
           });
@@ -286,15 +300,32 @@ function generateIntervalWindows(
 export async function flagOverdueItems() {
   const now = new Date();
 
-  const missedInstances = await prisma.checklistInstance.findMany({
+  const systemSettings = await prisma.systemSettings.findUnique({ where: { id: "system" } });
+  const defaultLateMinutes = systemSettings?.complianceLateMinutes ?? 60;
+
+  const pendingInstances = await prisma.checklistInstance.findMany({
     where: {
       status: { in: ["PENDING", "IN_PROGRESS"] },
       windowEnd: { lt: now },
     },
     include: {
-      template: { select: { id: true, name: true } },
+      template: { select: { id: true, name: true, organizationId: true } },
       location: { select: { id: true, organizationId: true } },
     },
+  });
+
+  const orgIds = [...new Set(pendingInstances.map((i) => i.template.organizationId))];
+  const orgs = await prisma.organization.findMany({
+    where: { id: { in: orgIds } },
+    select: { id: true, settings: true },
+  });
+  const orgSettingsMap = new Map(orgs.map((o) => [o.id, o.settings as any]));
+
+  const missedInstances = pendingInstances.filter((inst) => {
+    const orgSettings = orgSettingsMap.get(inst.template.organizationId) || {};
+    const lateMinutes = orgSettings?.compliance?.lateMinutes ?? defaultLateMinutes;
+    const deadline = new Date(inst.windowEnd!.getTime() + lateMinutes * 60 * 1000);
+    return now >= deadline;
   });
 
   let missedCount = 0;

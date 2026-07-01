@@ -53,29 +53,3 @@ export async function deleteEquipmentType(id: string, organizationId: string) {
   return prisma.equipmentType.delete({ where: { id } });
 }
 
-export async function getShifts(organizationId: string) {
-  return prisma.shift.findMany({
-    where: { organizationId },
-    orderBy: { startTime: "asc" },
-  });
-}
-
-export async function createShift(organizationId: string, data: { name: string; startTime: string; endTime: string }) {
-  return prisma.shift.create({
-    data: { ...data, organizationId },
-  });
-}
-
-export async function updateShift(id: string, organizationId: string, data: { name?: string; startTime?: string; endTime?: string }) {
-  const existing = await prisma.shift.findFirst({ where: { id, organizationId } });
-  if (!existing) throw new Error("Shift not found");
-
-  return prisma.shift.update({ where: { id }, data });
-}
-
-export async function deleteShift(id: string, organizationId: string) {
-  const existing = await prisma.shift.findFirst({ where: { id, organizationId } });
-  if (!existing) throw new Error("Shift not found");
-
-  return prisma.shift.delete({ where: { id } });
-}
