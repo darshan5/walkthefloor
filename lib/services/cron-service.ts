@@ -253,27 +253,29 @@ function generateIntervalWindows(
   const windows = [];
   let windowStart = new Date(storeOpen);
 
-  while (windowStart < storeClose) {
-    const windowEnd = new Date(windowStart);
-    windowEnd.setUTCHours(windowEnd.getUTCHours() + intervalHours);
+  while (windowStart.getTime() < storeClose.getTime()) {
+    const windowEnd = new Date(windowStart.getTime() + intervalHours * 60 * 60 * 1000);
 
-    if (windowEnd > storeClose) {
-      windowEnd.setTime(storeClose.getTime());
-    }
+    // Only generate if the store is still open past this window's start.
+    // e.g. store closes at 8PM exactly → skip 8PM window.
+    // Store closes at 8:30PM → include 8PM window (end capped at 8:30PM).
+    if (windowStart.getTime() >= storeClose.getTime()) break;
 
-    if (windowEnd > windowStart) {
-      const startStr = `${String(windowStart.getUTCHours()).padStart(2, "0")}:${String(windowStart.getUTCMinutes()).padStart(2, "0")}`;
-      const endStr = `${String(windowEnd.getUTCHours()).padStart(2, "0")}:${String(windowEnd.getUTCMinutes()).padStart(2, "0")}`;
+    const cappedEnd = windowEnd.getTime() > storeClose.getTime() ? storeClose : windowEnd;
 
-      let label: string;
-      const h = windowStart.getUTCHours();
-      if (h < 12) label = "AM";
-      else if (h < 17) label = "PM";
-      else label = "Evening";
-      label = `${label} (${startStr})`;
+    const startStr = `${String(windowStart.getUTCHours()).padStart(2, "0")}:${String(windowStart.getUTCMinutes()).padStart(2, "0")}`;
+    const endStr = `${String(cappedEnd.getUTCHours()).padStart(2, "0")}:${String(cappedEnd.getUTCMinutes()).padStart(2, "0")}`;
 
-      windows.push({ label, start: startStr, end: endStr, startDate: new Date(windowStart), endDate: new Date(windowEnd) });
-    }
+    const h = windowStart.getUTCHours();
+    const period = h < 12 ? "AM" : h < 17 ? "PM" : "Evening";
+
+    windows.push({
+      label: `${period} (${startStr})`,
+      start: startStr,
+      end: endStr,
+      startDate: new Date(windowStart),
+      endDate: new Date(cappedEnd),
+    });
 
     windowStart = new Date(windowEnd);
   }
