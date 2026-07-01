@@ -62,8 +62,39 @@ export async function deleteTemplate(id: string, organizationId: string) {
   });
   if (!existing) throw new Error("Template not found");
   if (existing.isBuiltIn) throw new Error("Cannot delete built-in templates");
-  if (existing._count.instances > 0) throw new Error("Cannot delete: template has checklist instances");
 
+  if (existing._count.instances > 0) {
+    const instanceIds = (
+      await prisma.checklistInstance.findMany({
+        where: { templateId: id },
+        select: { id: true },
+      })
+    ).map((i) => i.id);
+
+    const completionIds = (
+      await prisma.taskCompletion.findMany({
+        where: { instanceId: { in: instanceIds } },
+        select: { id: true },
+      })
+    ).map((c) => c.id);
+
+    if (completionIds.length > 0) {
+      await prisma.cAComment.deleteMany({
+        where: { correctiveAction: { completionId: { in: completionIds } } },
+      });
+      await prisma.correctiveAction.deleteMany({
+        where: { completionId: { in: completionIds } },
+      });
+    }
+
+    await prisma.complianceFailure.deleteMany({ where: { instanceId: { in: instanceIds } } });
+    await prisma.taskCompletion.deleteMany({ where: { instanceId: { in: instanceIds } } });
+    await prisma.instanceTask.deleteMany({ where: { instanceId: { in: instanceIds } } });
+    await prisma.checklistInstance.deleteMany({ where: { templateId: id } });
+  }
+
+  await prisma.templateLocationAssignment.deleteMany({ where: { templateId: id } });
+  await prisma.checklistTask.deleteMany({ where: { templateId: id } });
   return prisma.checklistTemplate.delete({ where: { id } });
 }
 

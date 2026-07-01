@@ -53,7 +53,7 @@ export default function TemplatesPage() {
   useEffect(() => { fetchTemplates(); }, []);
 
   async function handleDelete(t: Template) {
-    if (!confirm(`Delete "${t.name}"?`)) return;
+    if (!confirm(`Delete "${t.name}"? This will also remove all instances, completions, and related corrective actions. This cannot be undone.`)) return;
     const res = await fetch(`/api/v1/checklists/${t.id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Template deleted");
