@@ -55,30 +55,30 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving, onAdva
           <div className="flex items-center gap-2">
             {isCompleted && (
               completion.isCompliant
-                ? <CheckCircle className="h-4 w-4 shrink-0 text-green-600" />
-                : <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+                ? <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+                : <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
             )}
-            <span className={cn("font-medium text-sm", isCompleted && "text-muted-foreground")}>
+            <span className={cn("font-medium text-base", isCompleted && "text-muted-foreground")}>
               {task.title}
             </span>
-            {task.isCritical && <Badge variant="destructive" className="text-[10px] px-1 py-0">Critical</Badge>}
+            {task.isCritical && <Badge variant="destructive" className="text-xs px-1.5 py-0">Critical</Badge>}
           </div>
           {(task.locationEquipment || task.equipmentType) && (
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {task.locationEquipment?.equipmentType?.name || task.equipmentType?.name}
             </p>
           )}
           {task.config?.min != null && task.config?.max != null && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Range: {task.config.min}–{task.config.max}{task.config.unit ? `°${task.config.unit}` : ""}
               {task.config.target != null && ` · Target: ${task.config.target}`}
             </p>
           )}
-          {task.helpText && <p className="text-xs text-muted-foreground mt-1">{task.helpText}</p>}
+          {task.helpText && <p className="text-sm text-muted-foreground mt-1">{task.helpText}</p>}
         </div>
         {task.requiresPhoto && (
-          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
-            <Camera className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
+            <Camera className="h-5 w-5" />
           </Button>
         )}
       </div>
@@ -88,8 +88,8 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving, onAdva
       </div>
 
       {isNonCompliant && (
-        <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" />
+        <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+          <AlertTriangle className="h-4 w-4" />
           Non-compliant — Corrective Action created
         </p>
       )}

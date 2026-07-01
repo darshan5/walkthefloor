@@ -26,6 +26,7 @@ export async function getCorrectiveActions(
         select: {
           id: true,
           task: { select: { title: true, taskType: true, equipmentType: { select: { name: true } } } },
+          instanceTask: { select: { title: true, taskType: true, locationEquipment: { select: { instanceName: true, equipmentType: { select: { name: true } } } } } },
         },
       },
       _count: { select: { comments: true } },
@@ -51,6 +52,14 @@ export async function getCorrectiveAction(id: string, organizationId: string) {
               taskType: true,
               config: true,
               equipmentType: { select: { name: true } },
+            },
+          },
+          instanceTask: {
+            select: {
+              title: true,
+              taskType: true,
+              config: true,
+              locationEquipment: { select: { instanceName: true, equipmentType: { select: { name: true } } } },
             },
           },
           instance: {

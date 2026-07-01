@@ -98,17 +98,17 @@ export default function BookPage() {
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">Book</h1>
+      <h1 className="text-3xl font-bold">Book</h1>
 
       {/* Status summary */}
-      <div className="flex gap-3 text-sm">
-        <Badge variant="outline" className={cn("gap-1", openCount > 0 && "border-blue-300 text-blue-700")}>
+      <div className="flex gap-3 text-base">
+        <Badge variant="outline" className={cn("gap-1 text-sm px-3 py-1", openCount > 0 && "border-blue-300 text-blue-700")}>
           {openCount} Open
         </Badge>
-        <Badge variant="outline" className={cn("gap-1", missedCount > 0 && "border-red-300 text-red-700")}>
+        <Badge variant="outline" className={cn("gap-1 text-sm px-3 py-1", missedCount > 0 && "border-red-300 text-red-700")}>
           {missedCount} Missed
         </Badge>
-        <Badge variant="outline" className={cn("gap-1", completedCount > 0 && "border-green-300 text-green-700")}>
+        <Badge variant="outline" className={cn("gap-1 text-sm px-3 py-1", completedCount > 0 && "border-green-300 text-green-700")}>
           {completedCount} Done
         </Badge>
       </div>
@@ -116,24 +116,28 @@ export default function BookPage() {
       {/* Checklist selector */}
       {instances.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
+          <CardContent className="py-8 text-center text-lg text-muted-foreground">
             No checklists for today. Assign checklists to this location in Admin → Checklists.
           </CardContent>
         </Card>
       ) : (
         <>
           <select
-            className="w-full rounded-md border px-3 py-3 text-sm font-medium touch-target"
+            className="w-full rounded-md border px-4 py-3.5 text-base font-medium touch-target"
             value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
           >
             {instances.map((inst) => {
-              const statusIcon = inst.status === "COMPLETED" ? "✓" : inst.status === "MISSED" ? "✗" : "○";
+              const statusLabel =
+                inst.status === "COMPLETED" || inst.status === "COMPLETED_LATE" ? "[Done]"
+                : inst.status === "MISSED" ? "[Miss]"
+                : inst.status === "PENDING" ? "[Pend]"
+                : "[Open]";
               const windowEnd = inst.windowEnd ? new Date(inst.windowEnd) : null;
               const timeStr = windowEnd ? windowEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
               return (
                 <option key={inst.id} value={inst.id}>
-                  {statusIcon} {inst.template.name} ({inst.windowLabel}) {timeStr && `— due ${timeStr}`}
+                  {statusLabel} {inst.template.name} ({inst.windowLabel}) {timeStr && `— due ${timeStr}`}
                 </option>
               );
             })}
@@ -146,9 +150,9 @@ export default function BookPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">
                   <div>
-                    <h2 className="font-semibold">{detail.template.name}</h2>
+                    <h2 className="text-lg font-semibold">{detail.template.name}</h2>
                     {detail.windowLabel && (
-                      <span className="text-sm text-muted-foreground">{detail.windowLabel}</span>
+                      <span className="text-base text-muted-foreground">{detail.windowLabel}</span>
                     )}
                   </div>
                   <StatusBadge status={detail.status} />
@@ -156,9 +160,9 @@ export default function BookPage() {
 
                 {/* Time window + progress */}
                 {detail.windowStart && detail.windowEnd && (
-                  <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between" suppressHydrationWarning>
-                    <span className="text-sm text-red-600 font-medium flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
+                  <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between" suppressHydrationWarning>
+                    <span className="text-base text-red-600 font-medium flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" />
                       {new Date(detail.windowStart).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       {" - "}
                       {new Date(detail.windowEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
@@ -174,8 +178,8 @@ export default function BookPage() {
 
                 {/* Completed indicator */}
                 {detail.status === "COMPLETED" && (
-                  <div className="px-4 py-2 bg-green-50 border-b flex items-center gap-2 text-green-700 text-sm">
-                    <CheckCircle className="h-4 w-4" />
+                  <div className="px-4 py-2.5 bg-green-50 border-b flex items-center gap-2 text-green-700 text-base">
+                    <CheckCircle className="h-5 w-5" />
                     Completed {detail.completedAt && new Date(detail.completedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                   </div>
                 )}

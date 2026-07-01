@@ -35,7 +35,8 @@ type CA = {
   assignee: { id: string; name: string; title: string | null } | null;
   createdBy: { id: string; name: string };
   completion: {
-    task: { title: string; taskType: string; equipmentType: { name: string } | null };
+    task: { title: string; taskType: string; equipmentType: { name: string } | null } | null;
+    instanceTask: { title: string; taskType: string; locationEquipment: { instanceName: string; equipmentType: { name: string } } | null } | null;
   } | null;
   _count: { comments: number };
 };
@@ -137,7 +138,7 @@ export default function CorrectiveActionsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{ca.completion?.task.title || ca.title}</span>
+                      <span className="font-medium text-sm">{ca.completion?.task?.title || ca.completion?.instanceTask?.title || ca.title}</span>
                       <StatusBadge status={ca.status} />
                       <Badge variant={ca.priority === "CRITICAL" ? "destructive" : "outline"} className="text-xs">
                         {ca.priority}
@@ -148,8 +149,8 @@ export default function CorrectiveActionsPage() {
                         <MapPin className="h-3 w-3" />
                         {ca.location.name}
                       </span>
-                      {ca.completion?.task.equipmentType && (
-                        <span>{ca.completion.task.equipmentType.name}</span>
+                      {(ca.completion?.task?.equipmentType || ca.completion?.instanceTask?.locationEquipment) && (
+                        <span>{ca.completion?.task?.equipmentType?.name || ca.completion?.instanceTask?.locationEquipment?.equipmentType.name}</span>
                       )}
                       {ca.actualValue && (
                         <span className="text-red-600 font-medium">
@@ -189,7 +190,7 @@ export default function CorrectiveActionsPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  {selectedCA.completion?.task.title || selectedCA.title}
+                  {selectedCA.completion?.task?.title || selectedCA.completion?.instanceTask?.title || selectedCA.title}
                   <StatusBadge status={selectedCA.status} />
                 </DialogTitle>
               </DialogHeader>
