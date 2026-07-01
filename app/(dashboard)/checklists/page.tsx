@@ -229,11 +229,16 @@ function TaskList({
     const divRef = taskDivRefs.current.get(nextIdx);
     if (divRef?.current) {
       divRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      divRef.current.classList.add("ring-2", "ring-primary/50");
+      setTimeout(() => divRef.current?.classList.remove("ring-2", "ring-primary/50"), 1500);
     }
-    setTimeout(() => {
-      const ref = inputRefs.current.get(nextIdx);
-      if (ref?.current) ref.current.focus();
-    }, 100);
+    const isMobile = "ontouchstart" in window;
+    if (!isMobile) {
+      setTimeout(() => {
+        const ref = inputRefs.current.get(nextIdx);
+        if (ref?.current) ref.current.focus();
+      }, 100);
+    }
   }, [tasks.length]);
 
   if (tasks.length === 0) {
