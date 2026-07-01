@@ -283,6 +283,7 @@ export default function SaasChecklistsPage() {
               <select className="w-full rounded-md border px-3 py-2 text-sm" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
                 <option value="daily">Daily</option>
                 <option value="every_4h">Every 4 hours</option>
+                <option value="every_6h">Every 6 hours</option>
                 <option value="every_8h">Every 8 hours</option>
                 <option value="every_12h">Every 12 hours</option>
                 <option value="weekly">Weekly</option>
@@ -332,6 +333,7 @@ export default function SaasChecklistsPage() {
               <select className="w-full rounded-md border px-3 py-2 text-sm" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
                 <option value="daily">Daily</option>
                 <option value="every_4h">Every 4 hours</option>
+                <option value="every_6h">Every 6 hours</option>
                 <option value="every_8h">Every 8 hours</option>
                 <option value="every_12h">Every 12 hours</option>
                 <option value="weekly">Weekly</option>

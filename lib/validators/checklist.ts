@@ -17,6 +17,10 @@ const scheduleSchema = z.discriminatedUnion("frequency", [
     windows: z.array(windowSchema).length(6),
   }),
   z.object({
+    frequency: z.literal("every_6h"),
+    windows: z.array(windowSchema).length(4),
+  }),
+  z.object({
     frequency: z.literal("every_8h"),
     windows: z.array(windowSchema).length(3),
   }),
@@ -41,6 +45,15 @@ const scheduleSchema = z.discriminatedUnion("frequency", [
   }),
 ]);
 
+const updateScheduleSchema = z.object({
+  frequency: z.enum(["daily", "every_4h", "every_6h", "every_8h", "every_12h", "weekly", "monthly", "custom"]),
+  timesPerDay: z.number().int().min(1).max(6).optional(),
+  windows: z.array(windowSchema).optional(),
+  days: z.array(z.string()).optional(),
+  dayOfMonth: z.number().int().min(1).max(31).optional(),
+  intervalDays: z.number().int().min(1).optional(),
+}).passthrough();
+
 export const createTemplateSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   description: z.string().max(1000).optional(),
@@ -54,7 +67,7 @@ export const updateTemplateSchema = z.object({
   description: z.string().max(1000).optional(),
   category: z.string().max(50).optional(),
   assignmentType: z.enum(["book", "task"]).optional(),
-  schedule: scheduleSchema.optional(),
+  schedule: updateScheduleSchema.optional(),
   categoryFilters: z.array(z.object({
     categoryId: z.string(),
     checkTypes: z.array(z.string()),

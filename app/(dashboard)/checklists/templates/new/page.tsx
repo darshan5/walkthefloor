@@ -12,6 +12,7 @@ import { toast } from "sonner";
 const frequencies = [
   { value: "daily", label: "Daily", description: "1x or 2x per day" },
   { value: "every_4h", label: "Every 4 hours", description: "6 times per day" },
+  { value: "every_6h", label: "Every 6 hours", description: "4 times per day" },
   { value: "every_8h", label: "Every 8 hours", description: "3 times per day" },
   { value: "every_12h", label: "Every 12 hours", description: "2 times per day" },
   { value: "weekly", label: "Weekly", description: "Specific days of the week" },
@@ -25,6 +26,10 @@ const defaultWindows: Record<string, any> = {
     { start: "05:00", end: "09:00" }, { start: "09:00", end: "13:00" },
     { start: "13:00", end: "17:00" }, { start: "17:00", end: "21:00" },
     { start: "21:00", end: "01:00" }, { start: "01:00", end: "05:00" },
+  ]},
+  every_6h: { windows: [
+    { start: "05:00", end: "11:00" }, { start: "11:00", end: "17:00" },
+    { start: "17:00", end: "23:00" }, { start: "23:00", end: "05:00" },
   ]},
   every_8h: { windows: [
     { start: "05:00", end: "13:00" }, { start: "13:00", end: "21:00" },

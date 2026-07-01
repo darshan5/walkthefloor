@@ -185,6 +185,7 @@ function shouldGenerateToday(schedule: any, today: Date): boolean {
   switch (schedule.frequency) {
     case "daily":
     case "every_4h":
+    case "every_6h":
     case "every_8h":
     case "every_12h":
       return true;

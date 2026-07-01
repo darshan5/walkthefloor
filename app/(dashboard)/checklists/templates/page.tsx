@@ -31,6 +31,7 @@ type Template = {
 const frequencyLabels: Record<string, string> = {
   daily: "Daily",
   every_4h: "Every 4h",
+  every_6h: "Every 6h",
   every_8h: "Every 8h",
   every_12h: "Every 12h",
   weekly: "Weekly",

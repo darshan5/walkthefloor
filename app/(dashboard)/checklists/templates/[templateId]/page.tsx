@@ -35,6 +35,7 @@ type Assignment = { locationId: string; location: Location };
 const frequencies = [
   { value: "daily", label: "Daily" },
   { value: "every_4h", label: "Every 4 hours" },
+  { value: "every_6h", label: "Every 6 hours" },
   { value: "every_8h", label: "Every 8 hours" },
   { value: "every_12h", label: "Every 12 hours" },
   { value: "weekly", label: "Weekly" },
