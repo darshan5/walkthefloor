@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Camera, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Camera, CheckCircle, XCircle, AlertTriangle, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Task = {
@@ -149,6 +149,8 @@ function TemperatureInput({ task, completion, onComplete, saving, onAdvance, inp
   const localRef = useRef<HTMLInputElement>(null);
   const ref = inputRef || localRef;
   const unit = task.config?.unit || "F";
+  const hasValue = value.trim() !== "" && !isNaN(parseFloat(value));
+  const isDirty = hasValue && value !== (completion?.value?.temp?.toString() || "");
 
   async function handleSubmit() {
     const num = parseFloat(value);
@@ -168,8 +170,6 @@ function TemperatureInput({ task, completion, onComplete, saving, onAdvance, inp
           placeholder={`°${unit}`}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onBlur={handleSubmit}
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           className="pr-8"
           disabled={saving}
         />
@@ -177,6 +177,12 @@ function TemperatureInput({ task, completion, onComplete, saving, onAdvance, inp
           °{unit}
         </span>
       </div>
+      {(isDirty || (hasValue && !completion)) && (
+        <Button size="sm" className="gap-1 shrink-0 px-4" onClick={handleSubmit} disabled={saving}>
+          <Check className="h-4 w-4" />
+          Save
+        </Button>
+      )}
     </div>
   );
 }
@@ -185,6 +191,8 @@ function NumericInput({ task, completion, onComplete, saving, onAdvance, inputRe
   const [value, setValue] = useState(completion?.value?.value?.toString() || "");
   const localRef = useRef<HTMLInputElement>(null);
   const ref = inputRef || localRef;
+  const hasValue = value.trim() !== "" && !isNaN(parseFloat(value));
+  const isDirty = hasValue && value !== (completion?.value?.value?.toString() || "");
 
   async function handleSubmit() {
     const num = parseFloat(value);
@@ -194,18 +202,25 @@ function NumericInput({ task, completion, onComplete, saving, onAdvance, inputRe
   }
 
   return (
-    <Input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      pattern="[0-9]*\.?[0-9]*"
-      placeholder="Enter value"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={handleSubmit}
-      onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-      disabled={saving}
-    />
+    <div className="flex gap-2">
+      <Input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        pattern="[0-9]*\.?[0-9]*"
+        placeholder="Enter value"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        disabled={saving}
+        className="flex-1"
+      />
+      {(isDirty || (hasValue && !completion)) && (
+        <Button size="sm" className="gap-1 shrink-0 px-4" onClick={handleSubmit} disabled={saving}>
+          <Check className="h-4 w-4" />
+          Save
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -213,6 +228,8 @@ function TextInput({ task, completion, onComplete, saving, onAdvance, inputRef }
   const [value, setValue] = useState(completion?.value?.text || "");
   const localRef = useRef<HTMLInputElement>(null);
   const ref = inputRef || localRef;
+  const hasValue = value.trim() !== "";
+  const isDirty = hasValue && value !== (completion?.value?.text || "");
 
   async function handleSubmit() {
     if (!value.trim()) return;
@@ -221,15 +238,22 @@ function TextInput({ task, completion, onComplete, saving, onAdvance, inputRef }
   }
 
   return (
-    <Input
-      ref={ref}
-      placeholder="Enter text"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={handleSubmit}
-      onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-      disabled={saving}
-    />
+    <div className="flex gap-2">
+      <Input
+        ref={ref}
+        placeholder="Enter text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        disabled={saving}
+        className="flex-1"
+      />
+      {(isDirty || (hasValue && !completion)) && (
+        <Button size="sm" className="gap-1 shrink-0 px-4" onClick={handleSubmit} disabled={saving}>
+          <Check className="h-4 w-4" />
+          Save
+        </Button>
+      )}
+    </div>
   );
 }
 
