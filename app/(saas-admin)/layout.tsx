@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Building2, Users, CreditCard, ScrollText, Settings, Shield, Box } from "lucide-react";
+import { Building2, Users, CreditCard, ScrollText, Settings, Shield, Box, ClipboardList } from "lucide-react";
 import { SaasLogoutButton } from "@/components/layout/saas-logout-button";
 
 const navItems = [
   { label: "Organizations", href: "/saas-admin", icon: Building2 },
   { label: "Equipment", href: "/saas-admin/equipment", icon: Box },
+  { label: "Checklists", href: "/saas-admin/checklists", icon: ClipboardList },
   { label: "Audit Log", href: "/saas-admin/audit-log", icon: ScrollText },
   { label: "Settings", href: "/saas-admin/settings", icon: Settings },
 ];

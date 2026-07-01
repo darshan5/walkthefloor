@@ -70,7 +70,7 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-2xl font-bold">Checklist Templates</h1>
           <p className="text-sm text-muted-foreground">
-            Manage checklist templates and their tasks. Built-in templates cannot be deleted.
+            Manage checklist templates and their tasks.
           </p>
         </div>
         <Link href="/checklists/templates/new">

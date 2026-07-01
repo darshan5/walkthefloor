@@ -61,7 +61,6 @@ export async function deleteTemplate(id: string, organizationId: string) {
     include: { _count: { select: { instances: true } } },
   });
   if (!existing) throw new Error("Template not found");
-  if (existing.isBuiltIn) throw new Error("Cannot delete built-in templates");
 
   if (existing._count.instances > 0) {
     const instanceIds = (
