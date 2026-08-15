@@ -7,7 +7,7 @@ const createSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   url: z.string().url("Must be a valid URL"),
   description: z.string().max(2000).optional(),
-  folderId: z.string().optional(),
+  folderId: z.string().nullable().optional(),
   tagIds: z.array(z.string()).optional(),
 });
 

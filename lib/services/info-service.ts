@@ -68,7 +68,7 @@ export async function createItem(
     title: string;
     url: string;
     description?: string;
-    folderId?: string;
+    folderId?: string | null;
     tagIds?: string[];
   }
 ) {
