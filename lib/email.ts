@@ -1,7 +1,3 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = process.env.EMAIL_FROM || "WalkTheFloor <notifications@walkthefloor.com>";
 
 export async function sendEmail({
@@ -16,6 +12,8 @@ export async function sendEmail({
   if (!process.env.RESEND_API_KEY) return;
 
   try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
       from: FROM_EMAIL,
       to: Array.isArray(to) ? to : [to],
