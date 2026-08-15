@@ -93,9 +93,10 @@ async function fetchInboxClerkRecords(
   return allRecords;
 }
 
-export async function syncGuestData(organizationId: string) {
+export async function syncGuestData(organizationId: string, daysBack?: number) {
   const config = await prisma.guestServiceConfig.findUnique({ where: { organizationId } });
-  if (!config?.inboxClerkApiKey || !config.isEnabled) return { skipped: true };
+  if (!config?.inboxClerkApiKey) return { skipped: true };
+  if (!daysBack && !config.isEnabled) return { skipped: true };
 
   const locations = await prisma.location.findMany({
     where: { organizationId, storeNumber: { not: null } },
@@ -107,9 +108,11 @@ export async function syncGuestData(organizationId: string) {
     if (loc.storeNumber) storeMap.set(loc.storeNumber, loc.id);
   }
 
-  const dateFrom = config.lastSyncAt
-    ? config.lastSyncAt.toISOString().split("T")[0]
-    : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const dateFrom = daysBack
+    ? new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+    : config.lastSyncAt
+      ? config.lastSyncAt.toISOString().split("T")[0]
+      : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   let surveysSynced = 0;
   let complaintsSynced = 0;

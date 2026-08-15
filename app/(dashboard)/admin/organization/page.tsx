@@ -543,7 +543,11 @@ export default function OrganizationPage() {
                       disabled={gsSyncing || !gsConfig.hasApiKey}
                       onClick={async () => {
                         setGsSyncing(true);
-                        const res = await fetch("/api/v1/guest-service/sync", { method: "POST" });
+                        const res = await fetch("/api/v1/guest-service/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ daysBack: 60 }),
+                        });
                         setGsSyncing(false);
                         if (res.ok) {
                           const { data } = await res.json();
@@ -556,7 +560,7 @@ export default function OrganizationPage() {
                       }}
                     >
                       <RefreshCw className={`mr-1 h-3 w-3 ${gsSyncing ? "animate-spin" : ""}`} />
-                      Sync Now
+                      Sync Last 60 Days
                     </Button>
                   </div>
                 </div>
