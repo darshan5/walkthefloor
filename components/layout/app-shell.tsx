@@ -6,6 +6,7 @@ import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { LocationSelector } from "./location-selector";
+import { LocationProvider } from "./location-context";
 import { ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
@@ -23,6 +24,7 @@ export function AppShell({ children, user }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
+    <LocationProvider>
     <div className="flex h-screen">
       <Sidebar appAccess={user.appAccess} />
 
@@ -57,5 +59,6 @@ export function AppShell({ children, user }: AppShellProps) {
         <BottomNav appAccess={user.appAccess} />
       </div>
     </div>
+    </LocationProvider>
   );
 }

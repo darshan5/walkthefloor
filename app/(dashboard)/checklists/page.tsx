@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLocation } from "@/components/layout/location-context";
 
 type Instance = {
   id: string;
@@ -35,14 +36,19 @@ type InstanceDetail = Instance & {
 };
 
 export default function BookPage() {
+  const { effectiveLocationId } = useLocation();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<InstanceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
+  const locationId = effectiveLocationId(true);
+
   async function fetchInstances() {
-    const res = await fetch("/api/v1/instances");
+    const params = new URLSearchParams();
+    if (locationId) params.set("locationId", locationId);
+    const res = await fetch(`/api/v1/instances?${params}`);
     if (res.ok) {
       const { data } = await res.json();
       setInstances(data || []);
@@ -62,7 +68,7 @@ export default function BookPage() {
     }
   }
 
-  useEffect(() => { fetchInstances(); }, []);
+  useEffect(() => { setSelectedId(null); setDetail(null); fetchInstances(); }, [locationId]);
   useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId]);
 
   async function handleComplete(taskId: string, value: any) {

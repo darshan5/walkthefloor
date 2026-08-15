@@ -25,6 +25,7 @@ import { StatusBadge } from "@/components/data/status-badge";
 import { MapPin, Clock, Plus, Wrench, User, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, getInitials } from "@/lib/utils";
+import { useLocation } from "@/components/layout/location-context";
 
 type WorkOrder = {
   id: string;
@@ -56,17 +57,16 @@ type Vendor = { id: string; name: string; specialty: string | null };
 
 export default function MaintenancePage() {
   const router = useRouter();
+  const { selectedLocationId, locations } = useLocation();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [counts, setCounts] = useState<Counts>({ pendingApproval: 0, approved: 0, inProgress: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
 
   const [session, setSession] = useState<any>(null);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -91,9 +91,6 @@ export default function MaintenancePage() {
     fetch("/api/auth/session")
       .then((r) => r.json())
       .then((data) => setSession(data?.user || null));
-    fetch("/api/v1/locations")
-      .then((r) => r.json())
-      .then((data) => setLocations(data?.data || []));
     fetch("/api/v1/vendors")
       .then((r) => r.json())
       .then((data) => setVendors(data?.data || []));
@@ -102,7 +99,7 @@ export default function MaintenancePage() {
   useEffect(() => {
     fetchWorkOrders();
     fetchCounts();
-  }, [tab, statusFilter, priorityFilter, locationFilter]);
+  }, [tab, statusFilter, priorityFilter, selectedLocationId]);
 
   useEffect(() => {
     if (form.locationId) {
@@ -120,7 +117,7 @@ export default function MaintenancePage() {
     const params = new URLSearchParams({ tab });
     if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
     if (priorityFilter && priorityFilter !== "all") params.set("priority", priorityFilter);
-    if (locationFilter && locationFilter !== "all") params.set("locationId", locationFilter);
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
     const res = await fetch(`/api/v1/work-orders?${params}`);
     if (res.ok) {
       const { data } = await res.json();
@@ -175,11 +172,12 @@ export default function MaintenancePage() {
   }
 
   function resetForm() {
+    const defaultLocation = selectedLocationId || (locations.length === 1 ? locations[0].id : "");
     setForm({
       title: "",
       description: "",
       priority: "MEDIUM",
-      locationId: locations.length === 1 ? locations[0].id : "",
+      locationId: defaultLocation,
       equipmentId: "",
       dueDate: "",
       assignType: "user",
@@ -191,9 +189,6 @@ export default function MaintenancePage() {
 
   function openCreate() {
     resetForm();
-    if (locations.length === 1) {
-      setForm((f) => ({ ...f, locationId: locations[0].id }));
-    }
     setCreateOpen(true);
   }
 
@@ -266,19 +261,6 @@ export default function MaintenancePage() {
               <SelectItem value="CRITICAL">Critical</SelectItem>
             </SelectContent>
           </Select>
-          {locations.length > 1 && (
-            <Select value={locationFilter} onValueChange={(v) => setLocationFilter(v || "")}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
       </div>
 

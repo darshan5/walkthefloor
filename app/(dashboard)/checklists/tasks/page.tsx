@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLocation } from "@/components/layout/location-context";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/data/status-badge";
 import { ComplianceBar } from "@/components/data/compliance-bar";
@@ -20,15 +21,20 @@ type Instance = {
 };
 
 export default function TasksPage() {
+  const { effectiveLocationId } = useLocation();
+  const locationId = effectiveLocationId(true);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/v1/instances?type=task")
+    setLoading(true);
+    const params = new URLSearchParams({ type: "task" });
+    if (locationId) params.set("locationId", locationId);
+    fetch(`/api/v1/instances?${params}`)
       .then((r) => r.json())
       .then(({ data }) => setInstances(data || []))
       .finally(() => setLoading(false));
-  }, []);
+  }, [locationId]);
 
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 

@@ -18,6 +18,7 @@ import { StatusBadge } from "@/components/data/status-badge";
 import { AlertTriangle, MapPin, Clock, MessageSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDateTime, getInitials } from "@/lib/utils";
+import { useLocation } from "@/components/layout/location-context";
 
 type CA = {
   id: string;
@@ -46,6 +47,7 @@ type CADetail = CA & {
 };
 
 export default function CorrectiveActionsPage() {
+  const { selectedLocationId } = useLocation();
   const [cas, setCas] = useState<CA[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
@@ -55,7 +57,9 @@ export default function CorrectiveActionsPage() {
   const [sending, setSending] = useState(false);
 
   async function fetchCAs() {
-    const res = await fetch(`/api/v1/corrective-actions?tab=${tab}`);
+    const params = new URLSearchParams({ tab });
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
+    const res = await fetch(`/api/v1/corrective-actions?${params}`);
     if (res.ok) {
       const { data } = await res.json();
       setCas(data);
@@ -66,7 +70,7 @@ export default function CorrectiveActionsPage() {
   useEffect(() => {
     setLoading(true);
     fetchCAs();
-  }, [tab]);
+  }, [tab, selectedLocationId]);
 
   async function openDetail(caId: string) {
     const res = await fetch(`/api/v1/corrective-actions/${caId}`);

@@ -1,29 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, ChevronDown, Check } from "lucide-react";
+import { MapPin, ChevronDown, Check, Building2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-type Location = {
-  id: string;
-  name: string;
-  storeNumber?: string | null;
-};
+import { useLocation } from "./location-context";
 
 export function LocationSelector() {
-  const [locations] = useState<Location[]>([
-    { id: "1", name: "Main", storeNumber: "001" },
-    { id: "2", name: "Downtown", storeNumber: "002" },
-  ]);
-  const [selectedId, setSelectedId] = useState(locations[0]?.id);
+  const { selectedLocationId, setSelectedLocationId, locations, loading } = useLocation();
 
-  const selected = locations.find((l) => l.id === selectedId);
+  if (loading || locations.length === 0) return null;
+
+  const selected = locations.find((l) => l.id === selectedLocationId);
+  const showAllOption = locations.length > 1;
 
   return (
     <DropdownMenu>
@@ -31,21 +25,38 @@ export function LocationSelector() {
         className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
       >
         <MapPin className="h-4 w-4 text-muted-foreground" />
-        <span className="max-w-[120px] truncate">{selected?.name || "Select location"}</span>
+        <span className="max-w-[120px] truncate">
+          {selected ? selected.name : "All Stores"}
+        </span>
         {selected?.storeNumber && (
           <span className="text-xs text-muted-foreground">#{selected.storeNumber}</span>
         )}
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
+        {showAllOption && (
+          <>
+            <DropdownMenuItem
+              onClick={() => setSelectedLocationId(null)}
+              className="gap-2"
+            >
+              <Check
+                className={cn("h-4 w-4", !selectedLocationId ? "opacity-100" : "opacity-0")}
+              />
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span>All Stores</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {locations.map((loc) => (
           <DropdownMenuItem
             key={loc.id}
-            onClick={() => setSelectedId(loc.id)}
+            onClick={() => setSelectedLocationId(loc.id)}
             className="gap-2"
           >
             <Check
-              className={cn("h-4 w-4", loc.id === selectedId ? "opacity-100" : "opacity-0")}
+              className={cn("h-4 w-4", loc.id === selectedLocationId ? "opacity-100" : "opacity-0")}
             />
             <span>{loc.name}</span>
             {loc.storeNumber && (

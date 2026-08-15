@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useLocation } from "@/components/layout/location-context";
 
 type Dashboard = {
   checklists: { total: number; completed: number; missed: number; pending: number };
@@ -27,13 +28,17 @@ type Dashboard = {
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const { selectedLocationId } = useLocation();
 
   useEffect(() => {
-    fetch("/api/v1/dashboard")
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
+    fetch(`/api/v1/dashboard?${params}`)
       .then((r) => r.json())
       .then(({ data }) => setData(data))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedLocationId]);
 
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
   if (!data) return null;
@@ -72,13 +77,16 @@ export default function DashboardPage() {
           icon={XCircle}
           variant={data.checklists.missed > 0 ? "danger" : "success"}
         />
-        <StatsCard
-          title="Maintenance"
-          value={data.maintenance.pendingApproval}
-          subtitle="Pending approval"
-          icon={Wrench}
-          variant={data.maintenance.pendingApproval > 0 ? "warning" : "default"}
-        />
+        <Link href="/maintenance">
+          <StatsCard
+            title="Maintenance"
+            value={data.maintenance.pendingApproval}
+            subtitle="Pending approval"
+            icon={Wrench}
+            variant={data.maintenance.pendingApproval > 0 ? "warning" : "default"}
+            onClick={() => {}}
+          />
+        </Link>
         <Link href="/guest-service">
           <StatsCard
             title="Guest Complaints"

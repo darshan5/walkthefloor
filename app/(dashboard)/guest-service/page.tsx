@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { MessageSquare, MapPin, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { useLocation } from "@/components/layout/location-context";
 import {
   LineChart,
   Line,
@@ -63,41 +64,36 @@ function getMonthOptions() {
 
 export default function GuestServicePage() {
   const router = useRouter();
+  const { selectedLocationId, locations } = useLocation();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [counts, setCounts] = useState<Counts>({ total: 0, responded: 0, needsResponse: 0 });
   const [loading, setLoading] = useState(true);
-  const [locations, setLocations] = useState<Location[]>([]);
 
   const monthOptions = getMonthOptions();
   const [month, setMonth] = useState(monthOptions[0].value);
-  const [locationFilter, setLocationFilter] = useState("");
   const [respondedFilter, setRespondedFilter] = useState("");
 
   const [trends, setTrends] = useState<TrendData | null>(null);
   const [trendsLoading, setTrendsLoading] = useState(false);
-  const [trendLocation, setTrendLocation] = useState("");
   const [trendMonths, setTrendMonths] = useState("6");
 
   useEffect(() => {
-    fetch("/api/v1/locations")
-      .then((r) => r.json())
-      .then((data) => setLocations(data?.data || []));
     fetchTrends();
   }, []);
 
   useEffect(() => {
     fetchComplaints();
     fetchCounts();
-  }, [month, locationFilter, respondedFilter]);
+  }, [month, selectedLocationId, respondedFilter]);
 
   useEffect(() => {
     fetchTrends();
-  }, [trendLocation, trendMonths]);
+  }, [selectedLocationId, trendMonths]);
 
   async function fetchComplaints() {
     setLoading(true);
     const params = new URLSearchParams({ month });
-    if (locationFilter && locationFilter !== "all") params.set("locationId", locationFilter);
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
     if (respondedFilter && respondedFilter !== "all") params.set("responded", respondedFilter);
     const res = await fetch(`/api/v1/guest-service/complaints?${params}`);
     if (res.ok) {
@@ -108,7 +104,9 @@ export default function GuestServicePage() {
   }
 
   async function fetchCounts() {
-    const res = await fetch(`/api/v1/guest-service/complaints?counts=true&month=${month}`);
+    const params = new URLSearchParams({ counts: "true", month });
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
+    const res = await fetch(`/api/v1/guest-service/complaints?${params}`);
     if (res.ok) {
       const { data } = await res.json();
       setCounts(data);
@@ -118,7 +116,7 @@ export default function GuestServicePage() {
   async function fetchTrends() {
     setTrendsLoading(true);
     const params = new URLSearchParams({ months: trendMonths });
-    if (trendLocation && trendLocation !== "all") params.set("locationId", trendLocation);
+    if (selectedLocationId) params.set("locationId", selectedLocationId);
     const res = await fetch(`/api/v1/guest-service/trends?${params}`);
     if (res.ok) {
       const { data } = await res.json();
@@ -174,19 +172,6 @@ export default function GuestServicePage() {
               ))}
             </SelectContent>
           </Select>
-          {locations.length > 1 && (
-            <Select value={locationFilter} onValueChange={(v) => setLocationFilter(v || "")}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           <Select value={respondedFilter} onValueChange={(v) => setRespondedFilter(v || "")}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Status" />
@@ -256,19 +241,6 @@ export default function GuestServicePage() {
 
         {/* Trend Filters */}
         <div className="flex gap-2 flex-wrap">
-          {locations.length > 1 && (
-            <Select value={trendLocation} onValueChange={(v) => setTrendLocation(v || "")}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           <div className="flex gap-1">
             {["3", "6", "12"].map((m) => (
               <Button
