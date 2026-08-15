@@ -485,7 +485,9 @@ export default function MaintenancePage() {
                 onValueChange={(v) => setForm({ ...form, locationId: v || "", equipmentId: "", assigneeId: "" })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
+                  <SelectValue placeholder="Select location">
+                    {locations.find((l) => l.id === form.locationId)?.name || "Select location"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((loc) => (
@@ -499,7 +501,9 @@ export default function MaintenancePage() {
                 <label className="text-sm font-medium">Equipment</label>
                 <Select value={form.equipmentId} onValueChange={(v) => setForm({ ...form, equipmentId: v || "" })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select equipment (optional)" />
+                    <SelectValue placeholder="Select equipment (optional)">
+                      {(() => { const eq = equipment.find((e) => e.id === form.equipmentId); return eq ? `${eq.equipmentType.name} - ${eq.instanceName}` : "Select equipment (optional)"; })()}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
@@ -542,7 +546,9 @@ export default function MaintenancePage() {
                 {form.assignType === "user" ? (
                   <Select value={form.assigneeId} onValueChange={(v) => setForm({ ...form, assigneeId: v || "" })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select user" />
+                      <SelectValue placeholder="Select user">
+                        {users.find((u) => u.id === form.assigneeId)?.name || "Select user"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {users.map((u) => (
@@ -555,7 +561,9 @@ export default function MaintenancePage() {
                 ) : (
                   <Select value={form.vendorId} onValueChange={(v) => setForm({ ...form, vendorId: v || "" })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select vendor" />
+                      <SelectValue placeholder="Select vendor">
+                        {vendors.find((x) => x.id === form.vendorId)?.name || "Select vendor"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {vendors.map((v) => (

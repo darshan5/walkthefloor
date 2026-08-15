@@ -557,7 +557,9 @@ export default function WorkOrderDetailPage() {
                 onValueChange={(v) => setApproveForm({ ...approveForm, assigneeId: v || "" })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
+                  <SelectValue placeholder="Select user">
+                    {users.find((u) => u.id === approveForm.assigneeId)?.name || "Select user"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((u) => (
@@ -573,7 +575,9 @@ export default function WorkOrderDetailPage() {
                 onValueChange={(v) => setApproveForm({ ...approveForm, vendorId: v || "" })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select vendor" />
+                  <SelectValue placeholder="Select vendor">
+                    {vendors.find((x) => x.id === approveForm.vendorId)?.name || "Select vendor"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {vendors.map((v) => (

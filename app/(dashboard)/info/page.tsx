@@ -621,7 +621,11 @@ export default function InfoPage() {
                 onValueChange={(v) => setFolderForm({ ...folderForm, parentId: v === "root" ? "" : (v || "") })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {folderForm.parentId
+                      ? allFolders.find((x) => x.id === folderForm.parentId)?.name || "Root (top level)"
+                      : "Root (top level)"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="root">Root (top level)</SelectItem>
