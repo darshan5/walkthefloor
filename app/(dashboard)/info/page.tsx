@@ -88,6 +88,8 @@ export default function InfoPage() {
     tagIds: [] as string[],
   });
   const [folderForm, setFolderForm] = useState({ name: "", parentId: "" });
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameName, setRenameName] = useState("");
 
   const canManage = session?.permissions?.includes("documents.manage");
   const canDelete = ["Director of Operations", "Franchisee"].includes(session?.role || "");
@@ -384,14 +386,8 @@ export default function InfoPage() {
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const newName = prompt("Rename folder:", folder.name);
-                        if (newName && newName !== folder.name) {
-                          fetch(`/api/v1/info/folders/${folder.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ name: newName }),
-                          }).then(() => { refreshAll(); toast.success("Folder renamed"); });
-                        }
+                        setRenameTarget({ id: folder.id, name: folder.name });
+                        setRenameName(folder.name);
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -645,6 +641,47 @@ export default function InfoPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
+      {/* Rename Folder Dialog */}
+      <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            placeholder="Folder name"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && renameName.trim() && renameTarget) {
+                setSaving(true);
+                fetch(`/api/v1/info/folders/${renameTarget.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: renameName.trim() }),
+                }).then(() => { setSaving(false); setRenameTarget(null); refreshAll(); toast.success("Folder renamed"); });
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button
+              disabled={saving || !renameName.trim()}
+              onClick={() => {
+                if (!renameTarget) return;
+                setSaving(true);
+                fetch(`/api/v1/info/folders/${renameTarget.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: renameName.trim() }),
+                }).then(() => { setSaving(false); setRenameTarget(null); refreshAll(); toast.success("Folder renamed"); });
+              }}
+            >
+              {saving ? "Saving..." : "Rename"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
