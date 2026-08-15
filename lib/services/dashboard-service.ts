@@ -24,6 +24,7 @@ export async function getRoleDashboard(
     openComplaints,
     pendingMaintenance,
     myFailures,
+    guestNeedsResponse,
   ] = await Promise.all([
     prisma.checklistInstance.count({
       where: { location: { organizationId }, date: { gte: today, lt: tomorrow }, ...locationFilter },
@@ -49,13 +50,19 @@ export async function getRoleDashboard(
     prisma.complianceFailure.count({
       where: { locationId: { in: locationIds }, userId, status: "unexcused" },
     }),
+    prisma.guestComplaint.count({
+      where: { organizationId, locationId: { in: locationIds }, responseText: null },
+    }),
   ]);
+
+  const guestOsat = await getOsatTrend(organizationId, locationIds);
 
   const base = {
     checklists: { total: todayInstances, completed: completedToday, missed: missedToday, pending: todayInstances - completedToday - missedToday },
     correctiveActions: { open: openCAs, overdue: overdueCAs },
     complaints: { open: openComplaints },
     maintenance: { pendingApproval: pendingMaintenance },
+    guestService: { needsResponse: guestNeedsResponse, osat: guestOsat },
   };
 
   if (role === "Multi-unit Manager" || role === "Director of Operations" || role === "Franchisee") {
@@ -247,4 +254,47 @@ export async function reviewExplanation(
       reviewNotes,
     },
   });
+}
+
+async function getOsatTrend(
+  organizationId: string,
+  locationIds: string[]
+): Promise<{ lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null }> {
+  const now = new Date();
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+  const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+
+  const [lastMonthSurveys, twoMonthsAgoSurveys] = await Promise.all([
+    prisma.guestSurvey.aggregate({
+      where: {
+        organizationId,
+        locationId: { in: locationIds },
+        transactionDate: { gte: lastMonthStart, lt: lastMonthEnd },
+        osatScore: { not: null },
+      },
+      _avg: { osatScore: true },
+    }),
+    prisma.guestSurvey.aggregate({
+      where: {
+        organizationId,
+        locationId: { in: locationIds },
+        transactionDate: { gte: twoMonthsAgoStart, lt: lastMonthStart },
+        osatScore: { not: null },
+      },
+      _avg: { osatScore: true },
+    }),
+  ]);
+
+  const lastMonth = lastMonthSurveys._avg.osatScore
+    ? Math.round(lastMonthSurveys._avg.osatScore * 10) / 10
+    : null;
+  const twoMonthsAgo = twoMonthsAgoSurveys._avg.osatScore
+    ? Math.round(twoMonthsAgoSurveys._avg.osatScore * 10) / 10
+    : null;
+  const d = lastMonth != null && twoMonthsAgo != null
+    ? Math.round((lastMonth - twoMonthsAgo) * 10) / 10
+    : null;
+
+  return { lastMonth, twoMonthsAgo, delta: d };
 }

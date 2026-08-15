@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardCheck, AlertTriangle, XCircle, Wrench, MessageSquare,
-  MapPin, ShieldAlert, TrendingUp,
+  MapPin, ShieldAlert, TrendingUp, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ type Dashboard = {
   correctiveActions: { open: number; overdue: number };
   complaints: { open: number };
   maintenance: { pendingApproval: number };
+  guestService: { needsResponse: number; osat: { lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null } };
   myFailures?: number;
   locationCompliance?: { id: string; name: string; storeNumber: string | null; total: number; completed: number; percent: number }[];
   failureCounts?: Record<string, { unexcused: number; excused: number; total: number }>;
@@ -44,7 +45,7 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
         <Link href="/checklists">
           <StatsCard
             title="Today's Checklists"
@@ -78,6 +79,36 @@ export default function DashboardPage() {
           icon={Wrench}
           variant={data.maintenance.pendingApproval > 0 ? "warning" : "default"}
         />
+        <Link href="/guest-service">
+          <StatsCard
+            title="Guest Complaints"
+            value={data.guestService.needsResponse}
+            subtitle="Need response"
+            icon={MessageSquare}
+            variant={data.guestService.needsResponse > 0 ? "warning" : "success"}
+            onClick={() => {}}
+          />
+        </Link>
+        <Link href="/guest-service">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <TrendingUp className="h-4 w-4" />
+                <span className="text-sm">OSAT Score</span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-bold">{data.guestService.osat.lastMonth ?? "—"}</span>
+                {data.guestService.osat.delta != null && (
+                  <span className={cn("flex items-center text-sm font-medium", data.guestService.osat.delta >= 0 ? "text-green-600" : "text-red-600")}>
+                    {data.guestService.osat.delta >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                    {Math.abs(data.guestService.osat.delta)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Last month vs prior</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* RGM: My compliance failures */}
