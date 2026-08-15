@@ -572,7 +572,7 @@ model WorkOrder {
   title          String
   description    String?
   priority       Priority           @default(MEDIUM)
-  status         String             @default("submitted")
+  status         String             @default("pending_approval")
   locationId     String
   location       Location           @relation(fields: [locationId], references: [id])
   equipmentId    String?

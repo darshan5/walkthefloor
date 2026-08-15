@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
       { label: "Users", href: "/admin/users" },
       { label: "Roles", href: "/admin/roles" },
       { label: "Devices", href: "/admin/devices" },
+      { label: "Vendors", href: "/admin/vendors" },
     ],
   },
   { label: "Support", href: "/support", icon: Headphones },

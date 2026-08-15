@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   ADMIN_DEVICES: "admin.devices",
   ADMIN_ORG: "admin.org",
   ADMIN_EQUIPMENT: "admin.equipment",
+  ADMIN_VENDORS: "admin.vendors",
 
   DOCUMENTS_VIEW: "documents.view",
   DOCUMENTS_MANAGE: "documents.manage",
