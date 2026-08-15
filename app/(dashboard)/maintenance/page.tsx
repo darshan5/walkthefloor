@@ -22,7 +22,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/data/status-badge";
-import { MapPin, Clock, Plus, Wrench, User, Building2 } from "lucide-react";
+import { MapPin, Clock, Plus, Wrench, User, Building2, Search, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, getInitials } from "@/lib/utils";
 import { useLocation } from "@/components/layout/location-context";
@@ -53,7 +53,7 @@ type Counts = {
 type Location = { id: string; name: string };
 type Equipment = { id: string; instanceName: string; equipmentType: { name: string } };
 type UserOption = { id: string; name: string; title: string | null };
-type Vendor = { id: string; name: string; specialty: string | null };
+type Vendor = { id: string; name: string; specialty: string | null; contactName: string | null; email: string | null; phone: string | null; isActive: boolean };
 
 export default function MaintenancePage() {
   const router = useRouter();
@@ -85,7 +85,17 @@ export default function MaintenancePage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [vendorSpecialty, setVendorSpecialty] = useState("");
+
   const canApprove = session?.permissions?.includes("maintenance.approve");
+
+  const filteredVendors = vendors.filter((v) => {
+    if (vendorSearch && !v.name.toLowerCase().includes(vendorSearch.toLowerCase()) && !v.contactName?.toLowerCase().includes(vendorSearch.toLowerCase())) return false;
+    if (vendorSpecialty && vendorSpecialty !== "all" && v.specialty !== vendorSpecialty) return false;
+    return true;
+  });
+  const vendorSpecialties = [...new Set(vendors.map((v) => v.specialty).filter(Boolean))] as string[];
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -232,8 +242,12 @@ export default function MaintenancePage() {
                 )}
               </TabsTrigger>
             )}
+            {canApprove && (
+              <TabsTrigger value="vendors">Vendors</TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
+        {tab !== "vendors" && (
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v || "")}>
             <SelectTrigger className="w-[140px]">
@@ -262,10 +276,76 @@ export default function MaintenancePage() {
             </SelectContent>
           </Select>
         </div>
+        )}
       </div>
 
+      {/* Vendor List */}
+      {tab === "vendors" && canApprove && (
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search vendors..."
+                value={vendorSearch}
+                onChange={(e) => setVendorSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {vendorSpecialties.length > 0 && (
+              <Select value={vendorSpecialty} onValueChange={(v) => setVendorSpecialty(v || "")}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Specialty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Specialties</SelectItem>
+                  {vendorSpecialties.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          {filteredVendors.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Building2 className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                No vendors found.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredVendors.map((v) => (
+                <Card key={v.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{v.name}</span>
+                          {v.specialty && (
+                            <Badge variant="outline" className="text-xs">{v.specialty}</Badge>
+                          )}
+                          {!v.isActive && (
+                            <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {v.contactName && <span className="flex items-center gap-1"><User className="h-3 w-3" />{v.contactName}</span>}
+                          {v.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{v.phone}</span>}
+                          {v.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{v.email}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Work Order List */}
-      {loading ? (
+      {tab !== "vendors" && (loading ? (
         <div className="py-8 text-center text-muted-foreground">Loading...</div>
       ) : workOrders.length === 0 ? (
         <Card>
@@ -339,7 +419,7 @@ export default function MaintenancePage() {
             </Card>
           ))}
         </div>
-      )}
+      ))}
 
       {/* FAB */}
       <button

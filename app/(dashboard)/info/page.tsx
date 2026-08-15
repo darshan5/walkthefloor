@@ -528,7 +528,16 @@ export default function InfoPage() {
                 onValueChange={(v) => setItemForm({ ...itemForm, folderId: v === "root" ? "" : (v || "") })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Root" />
+                  <SelectValue>
+                    {itemForm.folderId
+                      ? (() => {
+                          const f = allFolders.find((x) => x.id === itemForm.folderId);
+                          if (!f) return "Root (no folder)";
+                          const parent = f.parentId ? allFolders.find((x) => x.id === f.parentId) : null;
+                          return parent ? `${parent.name} / ${f.name}` : f.name;
+                        })()
+                      : "Root (no folder)"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="root">Root (no folder)</SelectItem>
