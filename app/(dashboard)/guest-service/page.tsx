@@ -78,10 +78,6 @@ export default function GuestServicePage() {
   const [trendMonths, setTrendMonths] = useState("6");
 
   useEffect(() => {
-    fetchTrends();
-  }, []);
-
-  useEffect(() => {
     fetchComplaints();
     fetchCounts();
   }, [month, selectedLocationId, respondedFilter]);
