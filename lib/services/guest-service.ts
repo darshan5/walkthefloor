@@ -394,11 +394,12 @@ export async function getComplaints(
 export async function getComplaintCounts(
   organizationId: string,
   locationIds: string[],
-  month?: string
+  month?: string,
+  locationId?: string
 ) {
   const where: any = {
     organizationId,
-    locationId: { in: locationIds },
+    locationId: locationId ? locationId : { in: locationIds },
   };
 
   if (month) {

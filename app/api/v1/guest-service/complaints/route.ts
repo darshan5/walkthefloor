@@ -10,7 +10,7 @@ export const GET = withAuth(async (req, _ctx, user) => {
   const countsOnly = searchParams.get("counts") === "true";
 
   if (countsOnly) {
-    const counts = await getComplaintCounts(user.organizationId, user.locationIds, month);
+    const counts = await getComplaintCounts(user.organizationId, user.locationIds, month, locationId);
     return apiSuccess(counts);
   }
 

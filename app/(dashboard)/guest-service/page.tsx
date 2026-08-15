@@ -163,8 +163,10 @@ export default function GuestServicePage() {
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <Select value={month} onValueChange={(v) => setMonth(v || monthOptions[0].value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
+            <SelectTrigger className="w-[200px]">
+              <SelectValue>
+                {monthOptions.find((m) => m.value === month)?.label || month}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {monthOptions.map((m) => (
