@@ -443,25 +443,32 @@ export default function OrganizationPage() {
               </p>
               <div className="space-y-2">
                 <label className="text-sm font-medium">InboxClerk API Key</label>
+                {gsConfig?.hasApiKey && !gsApiKey.trim() && (
+                  <p className="text-xs text-green-600">API key is saved and configured</p>
+                )}
                 <div className="flex gap-2">
                   <Input
                     type="password"
-                    placeholder="Enter API key..."
+                    placeholder={gsConfig?.hasApiKey ? "Enter new key to replace..." : "Enter API key..."}
                     value={gsApiKey}
                     onChange={(e) => { setGsApiKey(e.target.value); setGsTestResult(null); }}
                     className="max-w-sm"
                   />
+                </div>
+                <div className="flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={!gsApiKey.trim() || gsSaving}
+                    disabled={(!gsApiKey.trim() && !gsConfig?.hasApiKey) || gsSaving}
                     onClick={async () => {
                       setGsSaving(true);
                       setGsTestResult(null);
+                      const payload: any = { testOnly: true };
+                      if (gsApiKey.trim()) payload.inboxClerkApiKey = gsApiKey;
                       const res = await fetch("/api/v1/guest-service/config", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ inboxClerkApiKey: gsApiKey, testOnly: true }),
+                        body: JSON.stringify(payload),
                       });
                       setGsSaving(false);
                       if (res.ok) {

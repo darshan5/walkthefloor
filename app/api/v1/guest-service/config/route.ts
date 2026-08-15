@@ -1,6 +1,6 @@
 import { withAuth, apiSuccess, apiError } from "@/lib/api-utils";
 import { PERMISSIONS } from "@/lib/permissions";
-import { getConfig, saveConfig, testConnection } from "@/lib/services/guest-service";
+import { getConfig, saveConfig, testConnection, testSavedConnection } from "@/lib/services/guest-service";
 import { z } from "zod";
 
 const saveSchema = z.object({
@@ -19,8 +19,10 @@ export const POST = withAuth(async (req, _ctx, user) => {
   const parsed = saveSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.issues[0].message);
 
-  if (parsed.data.testOnly && parsed.data.inboxClerkApiKey) {
-    const result = await testConnection(parsed.data.inboxClerkApiKey);
+  if (parsed.data.testOnly) {
+    const result = parsed.data.inboxClerkApiKey
+      ? await testConnection(parsed.data.inboxClerkApiKey)
+      : await testSavedConnection(user.organizationId);
     return apiSuccess(result);
   }
 

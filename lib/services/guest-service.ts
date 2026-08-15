@@ -34,6 +34,12 @@ export async function saveConfig(
   });
 }
 
+export async function testSavedConnection(organizationId: string): Promise<{ ok: boolean; error?: string }> {
+  const config = await prisma.guestServiceConfig.findUnique({ where: { organizationId } });
+  if (!config?.inboxClerkApiKey) return { ok: false, error: "No API key configured" };
+  return testConnection(config.inboxClerkApiKey);
+}
+
 export async function testConnection(apiKey: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${INBOXCLERK_BASE}/dunkinguestfeedbackextractor/schema`, {
