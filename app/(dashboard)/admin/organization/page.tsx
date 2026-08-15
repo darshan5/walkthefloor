@@ -525,53 +525,48 @@ export default function OrganizationPage() {
                 {gsSaving ? "Saving..." : "Save Settings"}
               </Button>
 
-              {gsConfig && (
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Sync Status</p>
-                      <p className="text-xs text-muted-foreground">
-                        {gsConfig.hasApiKey ? "API key configured" : "No API key configured"}
-                        {" — "}
-                        {gsConfig.isEnabled ? "Sync enabled" : "Sync disabled"}
-                      </p>
-                      {gsConfig.lastSyncAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Last sync: {new Date(gsConfig.lastSyncAt).toLocaleString()}
-                        </p>
-                      )}
-                      {gsConfig.lastSyncError && (
-                        <p className="text-xs text-red-600">Last error: {gsConfig.lastSyncError}</p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={gsSyncing || !gsConfig.hasApiKey}
-                      onClick={async () => {
-                        setGsSyncing(true);
-                        const res = await fetch("/api/v1/guest-service/sync", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ daysBack: 60 }),
-                        });
-                        setGsSyncing(false);
-                        if (res.ok) {
-                          const { data } = await res.json();
-                          toast.success(`Synced: ${data.surveysSynced || 0} surveys, ${data.complaintsSynced || 0} complaints`);
-                          fetchGsConfig();
-                        } else {
-                          const { error } = await res.json();
-                          toast.error(error);
-                        }
-                      }}
-                    >
-                      <RefreshCw className={`mr-1 h-3 w-3 ${gsSyncing ? "animate-spin" : ""}`} />
-                      Sync Last 60 Days
-                    </Button>
-                  </div>
+              <div className="border-t pt-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Sync Status</p>
+                  <p className="text-xs text-muted-foreground">
+                    {gsConfig?.hasApiKey ? "API key configured" : "No API key configured"}
+                    {" — "}
+                    {gsConfig?.isEnabled ? "Sync enabled" : "Sync disabled"}
+                  </p>
+                  {gsConfig?.lastSyncAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Last sync: {new Date(gsConfig.lastSyncAt).toLocaleString()}
+                    </p>
+                  )}
+                  {gsConfig?.lastSyncError && (
+                    <p className="text-xs text-red-600">Last error: {gsConfig.lastSyncError}</p>
+                  )}
                 </div>
-              )}
+                <Button
+                  variant="outline"
+                  disabled={gsSyncing || !gsConfig?.hasApiKey}
+                  onClick={async () => {
+                    setGsSyncing(true);
+                    const res = await fetch("/api/v1/guest-service/sync", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ daysBack: 60 }),
+                    });
+                    setGsSyncing(false);
+                    if (res.ok) {
+                      const { data } = await res.json();
+                      toast.success(`Synced: ${data.surveysSynced || 0} surveys, ${data.complaintsSynced || 0} complaints`);
+                      fetchGsConfig();
+                    } else {
+                      const { error } = await res.json();
+                      toast.error(error);
+                    }
+                  }}
+                >
+                  <RefreshCw className={`mr-1 h-4 w-4 ${gsSyncing ? "animate-spin" : ""}`} />
+                  Sync Last 60 Days
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
