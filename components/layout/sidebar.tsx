@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   // { label: "Audits", href: "/audits", icon: ListChecks, permission: "audits" }, // Phase 2
   { label: "Maintenance", href: "/maintenance", icon: Wrench, permission: "maintenance" },
   { label: "Guest Service", href: "/guest-service", icon: MessageSquare, permission: "guest_service" },
-  { label: "Documents", href: "/documents", icon: FileText, permission: "documents" },
+  { label: "Info", href: "/info", icon: FileText, permission: "documents" },
   {
     label: "Admin",
     href: "/admin",

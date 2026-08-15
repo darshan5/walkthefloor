@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, MapPin, Box, Trash2 } from "lucide-react";
+import { Building2, Users, MapPin, Box, Trash2, Plus, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 type OrgData = {
@@ -30,6 +30,15 @@ export default function OrganizationPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [compEarly, setCompEarly] = useState("");
   const [compLate, setCompLate] = useState("");
+  const [infoTags, setInfoTags] = useState<{ id: string; name: string }[]>([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [tagSaving, setTagSaving] = useState(false);
+  const [gsConfig, setGsConfig] = useState<{ isEnabled: boolean; hasApiKey: boolean; lastSyncAt: string | null; lastSyncError: string | null } | null>(null);
+  const [gsApiKey, setGsApiKey] = useState("");
+  const [gsEnabled, setGsEnabled] = useState(false);
+  const [gsSaving, setGsSaving] = useState(false);
+  const [gsSyncing, setGsSyncing] = useState(false);
+  const [gsTestResult, setGsTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
 
   async function fetchOrg() {
     const res = await fetch("/api/v1/organization");
@@ -51,7 +60,24 @@ export default function OrganizationPage() {
     setLoading(false);
   }
 
-  useEffect(() => { fetchOrg(); }, []);
+  async function fetchTags() {
+    const res = await fetch("/api/v1/info/tags");
+    if (res.ok) {
+      const { data } = await res.json();
+      setInfoTags(data || []);
+    }
+  }
+
+  async function fetchGsConfig() {
+    const res = await fetch("/api/v1/guest-service/config");
+    if (res.ok) {
+      const { data } = await res.json();
+      setGsConfig(data);
+      setGsEnabled(data.isEnabled);
+    }
+  }
+
+  useEffect(() => { fetchOrg(); fetchTags(); fetchGsConfig(); }, []);
 
   async function handleSaveGeneral() {
     setSaving(true);
@@ -147,6 +173,8 @@ export default function OrganizationPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="book">Book / Checklists</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
+          <TabsTrigger value="info">Info</TabsTrigger>
+          <TabsTrigger value="guest-service">Guest Service</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -313,6 +341,226 @@ export default function OrganizationPage() {
               >
                 {saving ? "Saving..." : "Save Compliance Settings"}
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="info">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Info Tags</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Tags help organize Info items. Users can filter by tags when browsing.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="New tag name..."
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  className="max-w-xs"
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && newTagName.trim()) {
+                      e.preventDefault();
+                      setTagSaving(true);
+                      const res = await fetch("/api/v1/info/tags", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: newTagName.trim() }),
+                      });
+                      setTagSaving(false);
+                      if (res.ok) {
+                        setNewTagName("");
+                        fetchTags();
+                        toast.success("Tag created");
+                      } else {
+                        const { error } = await res.json();
+                        toast.error(error);
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  disabled={tagSaving || !newTagName.trim()}
+                  onClick={async () => {
+                    setTagSaving(true);
+                    const res = await fetch("/api/v1/info/tags", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newTagName.trim() }),
+                    });
+                    setTagSaving(false);
+                    if (res.ok) {
+                      setNewTagName("");
+                      fetchTags();
+                      toast.success("Tag created");
+                    } else {
+                      const { error } = await res.json();
+                      toast.error(error);
+                    }
+                  }}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Add
+                </Button>
+              </div>
+              {infoTags.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tags defined yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {infoTags.map((tag) => (
+                    <Badge key={tag.id} variant="outline" className="gap-1 pr-1">
+                      {tag.name}
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/v1/info/tags/${tag.id}`, { method: "DELETE" });
+                          if (res.ok) {
+                            fetchTags();
+                            toast.success("Tag deleted");
+                          } else {
+                            const { error } = await res.json();
+                            toast.error(error);
+                          }
+                        }}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="guest-service">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Guest Service — InboxClerk Integration</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Connect to InboxClerk to sync guest survey data and complaint cases daily.
+              </p>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">InboxClerk API Key</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    placeholder="Enter API key..."
+                    value={gsApiKey}
+                    onChange={(e) => { setGsApiKey(e.target.value); setGsTestResult(null); }}
+                    className="max-w-sm"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!gsApiKey.trim() || gsSaving}
+                    onClick={async () => {
+                      setGsSaving(true);
+                      setGsTestResult(null);
+                      const res = await fetch("/api/v1/guest-service/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ inboxClerkApiKey: gsApiKey, testOnly: true }),
+                      });
+                      setGsSaving(false);
+                      if (res.ok) {
+                        const { data } = await res.json();
+                        setGsTestResult(data);
+                      }
+                    }}
+                  >
+                    Test Connection
+                  </Button>
+                </div>
+                {gsTestResult && (
+                  <p className={`text-sm ${gsTestResult.ok ? "text-green-600" : "text-red-600"}`}>
+                    {gsTestResult.ok ? "Connection successful" : gsTestResult.error}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={gsEnabled}
+                    onChange={(e) => setGsEnabled(e.target.checked)}
+                    className="rounded"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Enable Daily Sync</p>
+                    <p className="text-xs text-muted-foreground">Automatically pull survey and complaint data at 4am daily</p>
+                  </div>
+                </label>
+              </div>
+              <Button
+                disabled={gsSaving}
+                onClick={async () => {
+                  setGsSaving(true);
+                  const payload: any = { isEnabled: gsEnabled };
+                  if (gsApiKey.trim()) payload.inboxClerkApiKey = gsApiKey;
+                  const res = await fetch("/api/v1/guest-service/config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  });
+                  setGsSaving(false);
+                  if (res.ok) {
+                    toast.success("Guest service settings saved");
+                    setGsApiKey("");
+                    fetchGsConfig();
+                  } else {
+                    const { error } = await res.json();
+                    toast.error(error);
+                  }
+                }}
+              >
+                {gsSaving ? "Saving..." : "Save Settings"}
+              </Button>
+
+              {gsConfig && (
+                <div className="border-t pt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Sync Status</p>
+                      <p className="text-xs text-muted-foreground">
+                        {gsConfig.hasApiKey ? "API key configured" : "No API key configured"}
+                        {" — "}
+                        {gsConfig.isEnabled ? "Sync enabled" : "Sync disabled"}
+                      </p>
+                      {gsConfig.lastSyncAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Last sync: {new Date(gsConfig.lastSyncAt).toLocaleString()}
+                        </p>
+                      )}
+                      {gsConfig.lastSyncError && (
+                        <p className="text-xs text-red-600">Last error: {gsConfig.lastSyncError}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={gsSyncing || !gsConfig.hasApiKey}
+                      onClick={async () => {
+                        setGsSyncing(true);
+                        const res = await fetch("/api/v1/guest-service/sync", { method: "POST" });
+                        setGsSyncing(false);
+                        if (res.ok) {
+                          const { data } = await res.json();
+                          toast.success(`Synced: ${data.surveysSynced || 0} surveys, ${data.complaintsSynced || 0} complaints`);
+                          fetchGsConfig();
+                        } else {
+                          const { error } = await res.json();
+                          toast.error(error);
+                        }
+                      }}
+                    >
+                      <RefreshCw className={`mr-1 h-3 w-3 ${gsSyncing ? "animate-spin" : ""}`} />
+                      Sync Now
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

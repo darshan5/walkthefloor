@@ -920,3 +920,125 @@ model Notification {
   @@index([userId, isRead])
   @@index([organizationId])
 }
+
+// ── INFO (formerly Documents) ────────────────────────
+
+model InfoFolder {
+  id             String       @id @default(cuid())
+  name           String
+  parentId       String?
+  parent         InfoFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children       InfoFolder[] @relation("FolderTree")
+  items          InfoItem[]
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([parentId])
+}
+
+model InfoItem {
+  id             String        @id @default(cuid())
+  title          String
+  url            String
+  description    String?
+  folderId       String?
+  folder         InfoFolder?   @relation(fields: [folderId], references: [id])
+  organizationId String
+  createdById    String
+  tags           InfoItemTag[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId])
+  @@index([folderId])
+}
+
+model InfoTag {
+  id             String        @id @default(cuid())
+  name           String
+  organizationId String
+  items          InfoItemTag[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+}
+
+model InfoItemTag {
+  itemId String
+  item   InfoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    InfoTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tagId])
+}
+
+// ── GUEST SERVICE ────────────────────────────────────
+
+model GuestServiceConfig {
+  id               String   @id @default(cuid())
+  organizationId   String   @unique
+  inboxClerkApiKey String?
+  isEnabled        Boolean  @default(false)
+  lastSyncAt       DateTime?
+  lastSyncError    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model GuestSurvey {
+  id                 String   @id @default(cuid())
+  surveyId           String   @unique
+  locationId         String
+  organizationId     String
+  reportDate         DateTime
+  transactionDate    DateTime
+  responseDate       DateTime
+  osatScore          Float?
+  ltrScore           Float?
+  accuracy           String?
+  offeredSample      Boolean?
+  guestComment       String?
+  surveyUrl          String?
+  restaurantAddress  String?
+  inboxClerkRecordId String
+  createdAt          DateTime @default(now())
+
+  @@index([organizationId, locationId])
+  @@index([transactionDate])
+}
+
+model GuestComplaint {
+  id                     String    @id @default(cuid())
+  caseNumber             String    @unique
+  locationId             String
+  organizationId         String
+  contactReceivedDate    DateTime?
+  incidentDate           DateTime?
+  incidentHour           String?
+  reasonForContact       String
+  caseOrigin             String?
+  guestName              String
+  guestEmail             String?
+  guestPhone             String?
+  restaurantAddress      String?
+  restaurantCity         String?
+  restaurantState        String?
+  productInvolved        String?
+  visitType              String?
+  loyaltyPointsAdded     String?
+  moneyOrGiftCardSent    String?
+  nextItemCouponSent     String?
+  guestNotes             String?   @db.Text
+  franchiseOwner         String?
+  comments               String?   @db.Text
+  responseText           String?   @db.Text
+  respondedById          String?
+  respondedAt            DateTime?
+  inboxClerkRecordId     String
+  createdAt              DateTime  @default(now())
+
+  @@index([organizationId, locationId])
+  @@index([incidentDate])
+}

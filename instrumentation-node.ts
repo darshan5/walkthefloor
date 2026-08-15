@@ -30,5 +30,17 @@ export function startCronJobs() {
     }
   });
 
-  console.log("[cron] Scheduled: generate-checklists (daily midnight), flag-overdue (every 15min)");
+  // Sync guest service data from InboxClerk — runs daily at 4am ET
+  cron.schedule("0 4 * * *", async () => {
+    console.log("[cron] Syncing guest service data...");
+    try {
+      const { syncAllOrgs } = await import("./lib/services/guest-service");
+      const results = await syncAllOrgs();
+      console.log("[cron] Guest service sync:", results);
+    } catch (e) {
+      console.error("[cron] Guest service sync failed:", e);
+    }
+  });
+
+  console.log("[cron] Scheduled: generate-checklists (daily midnight), flag-overdue (every 15min), guest-service-sync (daily 4am)");
 }
