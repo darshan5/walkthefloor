@@ -64,15 +64,34 @@ const navItems: NavItem[] = [
 
 type SidebarProps = {
   appAccess?: string[];
+  mobile?: boolean;
+  onNavigate?: () => void;
 };
 
-export function Sidebar({ appAccess = [] }: SidebarProps) {
+export function Sidebar({ appAccess = [], mobile, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   const filteredItems = navItems.filter((item) => {
     if (!item.permission) return true;
     return appAccess.includes(item.permission);
   });
+
+  if (mobile) {
+    return (
+      <ScrollArea className="flex-1">
+        <nav className="flex flex-col gap-1 p-3">
+          {filteredItems.map((item) => (
+            <NavItemComponent
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </nav>
+      </ScrollArea>
+    );
+  }
 
   return (
     <aside className="hidden w-60 shrink-0 border-r bg-sidebar md:block">
@@ -97,7 +116,7 @@ export function Sidebar({ appAccess = [] }: SidebarProps) {
   );
 }
 
-function NavItemComponent({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavItemComponent({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const [isOpen, setIsOpen] = useState(isActive && !!item.children);
   const Icon = item.icon;
@@ -124,6 +143,7 @@ function NavItemComponent({ item, pathname }: { item: NavItem; pathname: string 
                 <Link
                   key={child.href}
                   href={child.href}
+                  onClick={onNavigate}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
                     childActive && "bg-sidebar-accent font-medium text-foreground"
@@ -142,6 +162,7 @@ function NavItemComponent({ item, pathname }: { item: NavItem; pathname: string 
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent",
         isActive && "bg-sidebar-accent font-medium"

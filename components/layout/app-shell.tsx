@@ -29,17 +29,14 @@ export function AppShell({ children, user }: AppShellProps) {
       <Sidebar appAccess={user.appAccess} />
 
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-72 p-0">
-          <div className="flex h-14 items-center border-b px-4">
+        <SheetContent side="left" className="w-72 p-0 flex flex-col">
+          <div className="flex h-14 items-center border-b px-4 shrink-0">
             <Link href="/" className="flex items-center gap-2 font-semibold" onClick={() => setMobileMenuOpen(false)}>
               <ClipboardCheck className="h-6 w-6 text-primary" />
               <span>WalkTheFloor</span>
             </Link>
           </div>
-          <div className="p-3">
-            <LocationSelector />
-          </div>
-          <Sidebar appAccess={user.appAccess} />
+          <Sidebar appAccess={user.appAccess} mobile onNavigate={() => setMobileMenuOpen(false)} />
         </SheetContent>
       </Sheet>
 

@@ -56,11 +56,11 @@ export function TopBar({ user, onMenuToggle, showMenuButton }: TopBarProps) {
         <span className="text-sm font-medium">{user.name}</span>
       </div>
 
-      <div className="hidden md:block">
+      <div className="flex-1 flex justify-center md:justify-start md:flex-none">
         <LocationSelector />
       </div>
 
-      <div className="flex-1" />
+      <div className="hidden md:flex-1 md:block" />
 
       <Button variant="ghost" size="icon" className="relative">
         <Bell className="h-5 w-5" />
