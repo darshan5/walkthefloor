@@ -21,6 +21,7 @@ import {
   BarChart,
   HelpCircle,
   Headphones,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -37,8 +38,8 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Book", href: "/checklists", icon: ClipboardCheck, permission: "checklists" },
-  { label: "Tasks", href: "/checklists/tasks", icon: ListChecks, permission: "checklists" },
-  { label: "Corrective Actions", href: "/checklists/corrective-actions", icon: AlertTriangle, permission: "checklists" },
+  { label: "Task Dashboard", href: "/checklists/tasks", icon: ListChecks, permission: "checklists" },
+  { label: "Tasks", href: "/tasks", icon: CheckSquare, permission: "tasks" },
   // { label: "Audits", href: "/audits", icon: ListChecks, permission: "audits" }, // Phase 2
   { label: "Maintenance", href: "/maintenance", icon: Wrench, permission: "maintenance" },
   { label: "Guest Service", href: "/guest-service", icon: MessageSquare, permission: "guest_service" },

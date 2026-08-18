@@ -6,7 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users, MapPin, Box, Trash2, Plus, X, RefreshCw } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Building2, Users, MapPin, Box, Trash2, Plus, X, RefreshCw, Pencil, Repeat } from "lucide-react";
 import { toast } from "sonner";
 
 type OrgData = {
@@ -39,6 +54,14 @@ export default function OrganizationPage() {
   const [gsSaving, setGsSaving] = useState(false);
   const [gsSyncing, setGsSyncing] = useState(false);
   const [gsTestResult, setGsTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [taskTags, setTaskTags] = useState<{ id: string; name: string }[]>([]);
+  const [newTaskTagName, setNewTaskTagName] = useState("");
+  const [taskTagSaving, setTaskTagSaving] = useState(false);
+  const [taskTemplates, setTaskTemplates] = useState<any[]>([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [templateForm, setTemplateForm] = useState({ name: "", title: "", description: "", priority: "MEDIUM", tagIds: [] as string[], subtasks: [] as string[], newSubtask: "", repeat: false, recurrenceType: "daily", dayOfWeek: "1", dayOfMonth: "1", interval: "7" });
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   async function fetchOrg() {
     const res = await fetch("/api/v1/organization");
@@ -77,7 +100,23 @@ export default function OrganizationPage() {
     }
   }
 
-  useEffect(() => { fetchOrg(); fetchTags(); fetchGsConfig(); }, []);
+  async function fetchTaskTags() {
+    const res = await fetch("/api/v1/tasks/tags");
+    if (res.ok) {
+      const { data } = await res.json();
+      setTaskTags(data || []);
+    }
+  }
+
+  async function fetchTaskTemplates() {
+    const res = await fetch("/api/v1/tasks/templates");
+    if (res.ok) {
+      const { data } = await res.json();
+      setTaskTemplates(data || []);
+    }
+  }
+
+  useEffect(() => { fetchOrg(); fetchTags(); fetchGsConfig(); fetchTaskTags(); fetchTaskTemplates(); }, []);
 
   async function handleSaveGeneral() {
     setSaving(true);
@@ -174,6 +213,7 @@ export default function OrganizationPage() {
           <TabsTrigger value="book">Book / Checklists</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="info">Info</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="guest-service">Guest Service</TabsTrigger>
         </TabsList>
 
@@ -434,6 +474,125 @@ export default function OrganizationPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="tasks" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Task Tags</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={newTaskTagName}
+                  onChange={(e) => setNewTaskTagName(e.target.value)}
+                  placeholder="New tag name..."
+                  className="max-w-xs"
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && newTaskTagName.trim()) {
+                      setTaskTagSaving(true);
+                      const res = await fetch("/api/v1/tasks/tags", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: newTaskTagName.trim() }),
+                      });
+                      setTaskTagSaving(false);
+                      if (res.ok) { setNewTaskTagName(""); fetchTaskTags(); toast.success("Tag created"); }
+                      else { const { error } = await res.json(); toast.error(error); }
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  disabled={taskTagSaving || !newTaskTagName.trim()}
+                  onClick={async () => {
+                    setTaskTagSaving(true);
+                    const res = await fetch("/api/v1/tasks/tags", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newTaskTagName.trim() }),
+                    });
+                    setTaskTagSaving(false);
+                    if (res.ok) { setNewTaskTagName(""); fetchTaskTags(); toast.success("Tag created"); }
+                    else { const { error } = await res.json(); toast.error(error); }
+                  }}
+                >
+                  <Plus className="mr-1 h-3 w-3" />Add
+                </Button>
+              </div>
+              {taskTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {taskTags.map((tag) => (
+                    <Badge key={tag.id} variant="secondary" className="gap-1">
+                      {tag.name}
+                      <button
+                        className="ml-1 hover:text-destructive"
+                        onClick={async () => {
+                          const res = await fetch(`/api/v1/tasks/tags/${tag.id}`, { method: "DELETE" });
+                          if (res.ok) { fetchTaskTags(); toast.success("Tag deleted"); }
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Task Templates</CardTitle>
+                <Button size="sm" onClick={() => {
+                  setEditingTemplate(null);
+                  setTemplateForm({ name: "", title: "", description: "", priority: "MEDIUM", tagIds: [], subtasks: [], newSubtask: "", repeat: false, recurrenceType: "daily", dayOfWeek: "1", dayOfMonth: "1", interval: "7" });
+                  setTemplateDialogOpen(true);
+                }}>
+                  <Plus className="mr-1 h-3 w-3" />Add Template
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {taskTemplates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No templates yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {taskTemplates.map((t: any) => (
+                    <div key={t.id} className="flex items-center justify-between rounded-md border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.title} — {t.priority} — {(t.subtasks || []).length} subtasks</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          setEditingTemplate(t);
+                          setTemplateForm({
+                            name: t.name, title: t.title, description: t.description || "",
+                            priority: t.priority, tagIds: t.tagIds || [],
+                            subtasks: (t.subtasks || []).map((s: any) => s.title || s),
+                            newSubtask: "", repeat: !!t.recurrenceRule,
+                            recurrenceType: t.recurrenceRule?.type || "daily",
+                            dayOfWeek: String(t.recurrenceRule?.dayOfWeek ?? 1),
+                            dayOfMonth: String(t.recurrenceRule?.dayOfMonth ?? 1),
+                            interval: String(t.recurrenceRule?.interval ?? 7),
+                          });
+                          setTemplateDialogOpen(true);
+                        }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={async () => {
+                          const res = await fetch(`/api/v1/tasks/templates/${t.id}`, { method: "DELETE" });
+                          if (res.ok) { fetchTaskTemplates(); toast.success("Template deleted"); }
+                        }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="guest-service">
           <Card>
             <CardHeader><CardTitle className="text-base">Guest Service — InboxClerk Integration</CardTitle></CardHeader>
@@ -602,6 +761,166 @@ export default function OrganizationPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Template Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? "Edit Template" : "New Template"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            setTemplateSaving(true);
+            const payload: any = {
+              name: templateForm.name,
+              title: templateForm.title,
+              priority: templateForm.priority,
+              tagIds: templateForm.tagIds,
+              subtasks: templateForm.subtasks.map((s) => ({ title: s })),
+            };
+            if (templateForm.description) payload.description = templateForm.description;
+            if (templateForm.repeat) {
+              const rule: any = { type: templateForm.recurrenceType };
+              if (templateForm.recurrenceType === "weekly" || templateForm.recurrenceType === "biweekly") rule.dayOfWeek = parseInt(templateForm.dayOfWeek);
+              if (templateForm.recurrenceType === "monthly") rule.dayOfMonth = parseInt(templateForm.dayOfMonth);
+              if (templateForm.recurrenceType === "custom") rule.interval = parseInt(templateForm.interval);
+              payload.recurrenceRule = rule;
+            }
+            const url = editingTemplate ? `/api/v1/tasks/templates/${editingTemplate.id}` : "/api/v1/tasks/templates";
+            const method = editingTemplate ? "PATCH" : "POST";
+            const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            setTemplateSaving(false);
+            if (res.ok) {
+              toast.success(editingTemplate ? "Template updated" : "Template created");
+              setTemplateDialogOpen(false);
+              fetchTaskTemplates();
+            } else {
+              const { error } = await res.json();
+              toast.error(error);
+            }
+          }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Template Name *</label>
+              <Input value={templateForm.name} onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })} required />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Default Title *</label>
+              <Input value={templateForm.title} onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })} required />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea value={templateForm.description} onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })} rows={2} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Priority</label>
+              <Select value={templateForm.priority} onValueChange={(v) => setTemplateForm({ ...templateForm, priority: v || "MEDIUM" })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {taskTags.length > 0 && (
+              <div>
+                <label className="text-sm font-medium">Tags</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {taskTags.map((t) => (
+                    <Badge
+                      key={t.id}
+                      variant={templateForm.tagIds.includes(t.id) ? "default" : "outline"}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setTemplateForm((f) => ({ ...f, tagIds: f.tagIds.includes(t.id) ? f.tagIds.filter((x) => x !== t.id) : [...f.tagIds, t.id] }))}
+                    >
+                      {t.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="text-sm font-medium">Subtasks</label>
+              {templateForm.subtasks.length > 0 && (
+                <div className="space-y-1 mt-1 mb-2">
+                  {templateForm.subtasks.map((st, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm rounded-md bg-muted px-2 py-1">
+                      <span className="flex-1">{st}</span>
+                      <button type="button" onClick={() => setTemplateForm((f) => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  value={templateForm.newSubtask}
+                  onChange={(e) => setTemplateForm({ ...templateForm, newSubtask: e.target.value })}
+                  placeholder="Add subtask..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && templateForm.newSubtask.trim()) {
+                      e.preventDefault();
+                      setTemplateForm((f) => ({ ...f, subtasks: [...f.subtasks, f.newSubtask.trim()], newSubtask: "" }));
+                    }
+                  }}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={() => {
+                  if (templateForm.newSubtask.trim()) {
+                    setTemplateForm((f) => ({ ...f, subtasks: [...f.subtasks, f.newSubtask.trim()], newSubtask: "" }));
+                  }
+                }}>Add</Button>
+              </div>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={templateForm.repeat} onChange={(e) => setTemplateForm({ ...templateForm, repeat: e.target.checked })} className="rounded" />
+                <Repeat className="h-4 w-4" />
+                <span className="text-sm font-medium">Recurrence</span>
+              </label>
+              {templateForm.repeat && (
+                <div className="mt-2 space-y-2 rounded-md border p-3">
+                  <Select value={templateForm.recurrenceType} onValueChange={(v) => setTemplateForm({ ...templateForm, recurrenceType: v || "daily" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="custom">Custom interval</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(templateForm.recurrenceType === "weekly" || templateForm.recurrenceType === "biweekly") && (
+                    <Select value={templateForm.dayOfWeek} onValueChange={(v) => setTemplateForm({ ...templateForm, dayOfWeek: v || "1" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Sunday</SelectItem>
+                        <SelectItem value="1">Monday</SelectItem>
+                        <SelectItem value="2">Tuesday</SelectItem>
+                        <SelectItem value="3">Wednesday</SelectItem>
+                        <SelectItem value="4">Thursday</SelectItem>
+                        <SelectItem value="5">Friday</SelectItem>
+                        <SelectItem value="6">Saturday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {templateForm.recurrenceType === "monthly" && (
+                    <Input type="number" min="1" max="28" value={templateForm.dayOfMonth} onChange={(e) => setTemplateForm({ ...templateForm, dayOfMonth: e.target.value })} placeholder="Day of month" />
+                  )}
+                  {templateForm.recurrenceType === "custom" && (
+                    <Input type="number" min="1" value={templateForm.interval} onChange={(e) => setTemplateForm({ ...templateForm, interval: e.target.value })} placeholder="Every N days" />
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={templateSaving || !templateForm.name || !templateForm.title}>
+                {templateSaving ? "Saving..." : editingTemplate ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
