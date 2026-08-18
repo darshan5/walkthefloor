@@ -38,7 +38,6 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Book", href: "/checklists", icon: ClipboardCheck, permission: "checklists" },
-  { label: "Compliance", href: "/checklists/tasks", icon: ListChecks, permission: "checklists" },
   { label: "Tasks", href: "/tasks", icon: CheckSquare, permission: "tasks" },
   // { label: "Audits", href: "/audits", icon: ListChecks, permission: "audits" }, // Phase 2
   { label: "Maintenance", href: "/maintenance", icon: Wrench, permission: "maintenance" },
