@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         isConfirmed: true,
         organizationId: org.id,
         roleId: roles.FRANCHISEE,
-        appAccess: ["checklists", "audits", "maintenance", "guest_service", "admin", "documents", "reports", "support"],
+        appAccess: ["checklists", "audits", "maintenance", "guest_service", "tasks", "admin", "documents", "reports", "support"],
       },
     });
 
