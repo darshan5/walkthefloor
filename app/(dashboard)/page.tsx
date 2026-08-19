@@ -205,7 +205,7 @@ export default function DashboardPage() {
               <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="font-medium text-sm">Reports</p>
-                <p className="text-xs text-muted-foreground">CA heatmap & compliance</p>
+                <p className="text-xs text-muted-foreground">Compliance reports</p>
               </div>
             </CardContent>
           </Card>
