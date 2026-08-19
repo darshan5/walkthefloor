@@ -43,7 +43,7 @@ type Subtask = {
   title: string;
   status: string;
   assigneeId: string | null;
-  assignee: { id: string; name: string } | null;
+  assigneeName: string | null;
 };
 
 type Tag = { id: string; name: string };
@@ -60,14 +60,16 @@ type TaskDetail = {
   completedAt: string | null;
   createdAt: string;
   assigneeId: string | null;
+  createdById: string;
+  locationId: string;
+  locationName: string;
+  createdByName: string;
+  assigneeName: string | null;
   completionId: string | null;
   recurrenceRule: any;
-  location: { id: string; name: string };
-  createdBy: { id: string; name: string };
-  assignee: { id: string; name: string } | null;
   tags: { tag: Tag }[];
   subtasks: Subtask[];
-  comments: Comment[];
+  comments: (Comment & { userName: string })[];
 };
 
 type UserOption = { id: string; name: string; title: string | null };
@@ -95,7 +97,7 @@ export default function TaskDetailPage() {
   const [newSubtask, setNewSubtask] = useState("");
   const [addingSubtask, setAddingSubtask] = useState(false);
 
-  const isOwner = session?.id === task?.createdBy.id;
+  const isOwner = session?.id === task?.createdById;
   const canManage = session?.permissions?.includes("tasks.manage");
   const canEdit = isOwner || canManage;
   const canComment = isOwner || canManage;
@@ -116,12 +118,12 @@ export default function TaskDetailPage() {
   }, [taskId]);
 
   useEffect(() => {
-    if (task?.location.id) {
-      fetch(`/api/v1/users?locationId=${task.location.id}`)
+    if (task?.locationId) {
+      fetch(`/api/v1/users?locationId=${task.locationId}`)
         .then((r) => r.json())
         .then((data) => setUsers(data?.data || []));
     }
-  }, [task?.location.id]);
+  }, [task?.locationId]);
 
   async function fetchTask() {
     setLoading(true);
@@ -288,9 +290,9 @@ export default function TaskDetailPage() {
           <div className="mt-0.5 flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              {task.location.name}
+              {task.locationName}
             </span>
-            <span>Created by {task.createdBy.name} on {formatDate(task.createdAt)}</span>
+            <span>Created by {task.createdByName} on {formatDate(task.createdAt)}</span>
           </div>
         </div>
       </div>
@@ -304,10 +306,10 @@ export default function TaskDetailPage() {
           )}
         </div>
       )}
-      {task.assignee && (
+      {task.assigneeName && (
         <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700 flex items-center gap-2">
           <User className="h-4 w-4" />
-          {task.assignee.id === session?.id ? "Assigned to you" : `Assigned to ${task.assignee.name}`}
+          {task.assigneeId === session?.id ? "Assigned to you" : `Assigned to ${task.assigneeName}`}
         </div>
       )}
 
@@ -410,8 +412,8 @@ export default function TaskDetailPage() {
                   <span className={cn("text-sm flex-1", st.status === "completed" && "line-through text-muted-foreground")}>
                     {st.title}
                   </span>
-                  {st.assignee && (
-                    <span className="text-xs text-muted-foreground">{st.assignee.name}</span>
+                  {st.assigneeName && (
+                    <span className="text-xs text-muted-foreground">{st.assigneeName}</span>
                   )}
                 </div>
               ))}
