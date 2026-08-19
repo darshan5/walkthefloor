@@ -887,9 +887,10 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Mobile Panel */}
+      {/* Mobile Panel — only rendered on mobile to prevent backdrop blur on desktop */}
+      <div className="md:hidden">
       <Sheet open={panelOpen && !!selectedTask} onOpenChange={(open) => { if (!open) closePanel(); }}>
-        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto md:hidden p-0">
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto p-0">
           {selectedTask && (
             <TaskPanelContent
               task={selectedTask}
@@ -921,6 +922,7 @@ export default function TasksPage() {
           )}
         </SheetContent>
       </Sheet>
+      </div>
 
       {/* Create from Template Sheet */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
