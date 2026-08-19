@@ -38,13 +38,16 @@ type TaskItem = {
   source: string;
   dueDate: string | null;
   createdAt: string;
+  locationId: string;
+  locationName: string;
   assigneeId: string | null;
-  location: { id: string; name: string };
-  createdBy: { id: string; name: string };
-  assignee: { id: string; name: string } | null;
+  createdById: string;
+  createdByName: string;
+  assigneeName: string | null;
   tags: { tag: { id: string; name: string } }[];
   _count: { subtasks: number; comments: number };
-  subtasksDone?: number;
+  subtaskTotal: number;
+  subtaskCompleted: number;
   recurrenceRule: any;
 };
 
@@ -324,7 +327,7 @@ export default function TasksPage() {
       ) : (
         <div className="space-y-2">
           {tasks.map((task) => {
-            const isAssignedToMe = task.assigneeId && task.assigneeId !== session?.id && session?.id !== task.createdBy.id;
+            const isAssignedToMe = task.assigneeId && task.assigneeId !== session?.id && session?.id !== task.createdById;
             return (
               <Card
                 key={task.id}
@@ -356,7 +359,7 @@ export default function TasksPage() {
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
-                          {task.location.name}
+                          {task.locationName}
                         </span>
                         {task.dueDate && (
                           <span className="flex items-center gap-1">
@@ -364,9 +367,9 @@ export default function TasksPage() {
                             Due {formatDate(task.dueDate)}
                           </span>
                         )}
-                        {task._count.subtasks > 0 && (
+                        {task.subtaskTotal > 0 && (
                           <span className="text-xs">
-                            {task.subtasksDone ?? 0}/{task._count.subtasks} subtasks
+                            {task.subtaskCompleted}/{task.subtaskTotal} subtasks
                           </span>
                         )}
                         {task.tags.map((t) => (
@@ -377,12 +380,12 @@ export default function TasksPage() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      {task.assignee && (
+                      {task.assigneeName && (
                         <div className="flex items-center gap-1.5">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
-                            {getInitials(task.assignee.name)}
+                            {getInitials(task.assigneeName || "")}
                           </div>
-                          <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                          <span className="text-xs text-muted-foreground">{task.assigneeName}</span>
                         </div>
                       )}
                     </div>
