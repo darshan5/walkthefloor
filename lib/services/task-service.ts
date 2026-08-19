@@ -58,10 +58,11 @@ export async function getTasks(
     include: {
       ...TASK_INCLUDE,
       subtasks: {
-        select: { id: true, status: true },
+        select: { id: true, title: true, status: true, assigneeId: true, position: true },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
     take: 200,
   });
 
@@ -85,6 +86,15 @@ export async function getTasks(
   const locMap = new Map(locations.map((l) => [l.id, l.name]));
   const userMap = new Map(users.map((u) => [u.id, { name: u.name, title: u.title }]));
 
+  const subtaskAssigneeIds = tasks.flatMap((t) => t.subtasks.filter((s) => s.assigneeId).map((s) => s.assigneeId!));
+  if (subtaskAssigneeIds.length) {
+    const subUsers = await prisma.user.findMany({
+      where: { id: { in: [...new Set(subtaskAssigneeIds)] } },
+      select: { id: true, name: true },
+    });
+    subUsers.forEach((u) => userMap.set(u.id, { name: u.name, title: null }));
+  }
+
   return tasks.map((t) => ({
     ...t,
     locationName: locMap.get(t.locationId) || "Unknown",
@@ -92,7 +102,10 @@ export async function getTasks(
     assigneeName: t.assigneeId ? userMap.get(t.assigneeId)?.name || null : null,
     subtaskTotal: t.subtasks.length,
     subtaskCompleted: t.subtasks.filter((s) => s.status === "completed").length,
-    subtasks: undefined,
+    subtasks: t.subtasks.map((s) => ({
+      ...s,
+      assigneeName: s.assigneeId ? userMap.get(s.assigneeId)?.name || null : null,
+    })),
   }));
 }
 
@@ -212,6 +225,13 @@ export async function createTask(
     title = formatRecurringTitle(baseTitle, dueDate);
   }
 
+  const lastTask = await prisma.task.findFirst({
+    where: { organizationId, parentId: null },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+  const position = (lastTask?.position ?? 0) + 1;
+
   const task = await prisma.task.create({
     data: {
       title,
@@ -225,6 +245,7 @@ export async function createTask(
       createdById: userId,
       assigneeId: data.assigneeId || null,
       dueDate,
+      position,
       templateId: data.templateId,
       completionId: data.completionId,
       externalId: data.externalId,
@@ -570,4 +591,14 @@ async function addSystemComment(
   return prisma.taskComment.create({
     data: { taskId, userId, content, statusChange },
   });
+}
+
+export async function reorderTask(
+  id: string,
+  organizationId: string,
+  position: number
+) {
+  const task = await prisma.task.findFirst({ where: { id, organizationId } });
+  if (!task) throw new Error("Task not found");
+  return prisma.task.update({ where: { id }, data: { position } });
 }

@@ -39,11 +39,15 @@ import {
   CheckCheck,
   MessageSquare,
   CheckSquare,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, formatDateTime, getInitials } from "@/lib/utils";
 import { useLocation } from "@/components/layout/location-context";
 import { cn } from "@/lib/utils";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const PRIORITY_GROUPS = [
   { key: "CRITICAL", label: "Critical", border: "border-l-red-500", bg: "bg-red-500", headerBg: "bg-red-50", text: "text-red-700" },
@@ -78,6 +82,8 @@ type TaskItem = {
   _count: { subtasks: number; comments: number };
   subtaskTotal: number;
   subtaskCompleted: number;
+  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; position: number }[];
+  position: number;
   recurrenceRule: any;
 };
 
@@ -108,6 +114,11 @@ export default function TasksPage() {
   const [tagFilter, setTagFilter] = useState("");
 
   const [quickAdd, setQuickAdd] = useState<Record<string, string>>({});
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [addingSubtaskForId, setAddingSubtaskForId] = useState<string | null>(null);
+  const [inlineSubtaskTitle, setInlineSubtaskTitle] = useState("");
 
   // Detail panel state
   const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
@@ -131,6 +142,10 @@ export default function TasksPage() {
 
   const canAssign = session?.permissions?.includes("tasks.assign");
   const canManage = session?.permissions?.includes("tasks.manage");
+
+  const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
+  const sensors = useSensors(pointerSensor, touchSensor);
 
   useEffect(() => {
     fetch("/api/auth/session").then((r) => r.json()).then((d) => setSession(d?.user || null));
@@ -213,6 +228,97 @@ export default function TasksPage() {
     });
     if (res.ok) { fetchTasks(); }
     else { const { error } = await res.json(); toast.error(error); }
+  }
+
+  function toggleExpand(taskId: string) {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }
+
+  async function handleInlineTitleSave(taskId: string) {
+    if (!editingTitle.trim()) { setEditingTaskId(null); return; }
+    const res = await fetch(`/api/v1/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingTitle.trim() }),
+    });
+    setEditingTaskId(null);
+    if (res.ok) fetchTasks();
+    else { const { error } = await res.json(); toast.error(error); }
+  }
+
+  async function handleInlineSubtaskToggle(subtaskId: string, currentStatus: string) {
+    await fetch(`/api/v1/tasks/subtasks/${subtaskId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: currentStatus === "completed" ? "open" : "completed" }),
+    });
+    fetchTasks();
+  }
+
+  async function handleInlineAddSubtask(parentId: string) {
+    if (!inlineSubtaskTitle.trim()) return;
+    const res = await fetch(`/api/v1/tasks/${parentId}/subtasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: inlineSubtaskTitle.trim() }),
+    });
+    if (res.ok) {
+      setInlineSubtaskTitle("");
+      setAddingSubtaskForId(null);
+      fetchTasks();
+    }
+  }
+
+  function startAddSubtask(taskId: string) {
+    if (!expandedTasks.has(taskId)) toggleExpand(taskId);
+    setAddingSubtaskForId(taskId);
+    setInlineSubtaskTitle("");
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeTask = tasks.find((t) => t.id === active.id);
+    const overTask = tasks.find((t) => t.id === over.id);
+    if (!activeTask || !overTask) return;
+
+    const groupTasks = tasks
+      .filter((t) => t.priority === activeTask.priority && t.status !== "completed" && t.status !== "missed")
+      .sort((a, b) => a.position - b.position);
+
+    const oldIndex = groupTasks.findIndex((t) => t.id === active.id);
+    const newIndex = groupTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    let newPosition: number;
+    const reordered = [...groupTasks];
+    reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, activeTask);
+
+    if (newIndex === 0) {
+      newPosition = (reordered[1]?.position ?? 1) - 1;
+    } else if (newIndex === reordered.length - 1) {
+      newPosition = (reordered[reordered.length - 2]?.position ?? 0) + 1;
+    } else {
+      newPosition = (reordered[newIndex - 1].position + reordered[newIndex + 1].position) / 2;
+    }
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === active.id ? { ...t, position: newPosition } : t))
+    );
+
+    const res = await fetch(`/api/v1/tasks/${active.id}/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position: newPosition }),
+    });
+    if (!res.ok) fetchTasks();
   }
 
   // Status change
@@ -376,7 +482,9 @@ export default function TasksPage() {
 
   const grouped = PRIORITY_GROUPS.map((g) => ({
     ...g,
-    tasks: filteredTasks.filter((t) => t.priority === g.key && t.status !== "completed" && t.status !== "missed"),
+    tasks: filteredTasks
+      .filter((t) => t.priority === g.key && t.status !== "completed" && t.status !== "missed")
+      .sort((a, b) => a.position - b.position),
   }));
   const completedTasks = filteredTasks.filter((t) => t.status === "completed" || t.status === "missed");
 
@@ -439,6 +547,7 @@ export default function TasksPage() {
       {loading ? (
         <div className="py-12 text-center text-muted-foreground">Loading...</div>
       ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="space-y-4">
           {grouped.map((group) => {
             const isCollapsed = collapsed[group.key] ?? false;
@@ -459,60 +568,70 @@ export default function TasksPage() {
                     {/* Desktop Header Row */}
                     {group.tasks.length > 0 && (
                       <div className="hidden md:flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/30">
+                        <span className="w-5" />
+                        <span className="w-4" />
+                        <span className="w-4" />
                         <span className="flex-1">Task</span>
-                        <span className="w-20 text-center">Priority</span>
-                        {canAssign && <span className="w-24 text-center">Assignee</span>}
+                        {canAssign && <span className="w-20 text-center">Assignee</span>}
                         <span className="w-24 text-center">Due Date</span>
-                        <span className="w-28">Tags</span>
+                        <span className="w-24">Tags</span>
+                        <span className="w-14" />
                       </div>
                     )}
 
                     {/* Task Rows */}
+                    <SortableContext items={group.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                     {group.tasks.map((task) => {
                       const isAssignedToMe = task.assigneeId && task.assigneeId !== session?.id && session?.id !== task.createdById;
                       return (
-                        <div key={task.id}>
+                        <SortableTaskRow key={task.id} id={task.id}>
+                        {(dragHandleProps) => (<>
+                        <div>
                           {/* Desktop Row */}
                           <div
                             className={cn(
-                              "hidden md:flex items-center gap-2 px-3 py-2 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors",
+                              "hidden md:flex items-center gap-2 px-3 py-2 border-b last:border-b-0 hover:bg-muted/50 transition-colors",
                               isAssignedToMe && "bg-blue-50/50",
                               task.status === "completed" && "opacity-60"
                             )}
-                            onClick={() => openTaskPanel(task.id)}
                           >
-                            <GripVertical className="h-4 w-4 text-muted-foreground/30 shrink-0 cursor-grab" />
-                            <button
-                              className="shrink-0"
-                              onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}
-                            >
-                              {task.status === "completed" ? (
-                                <CheckSquare className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <Square className="h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground" />
-                              )}
+                            <div {...dragHandleProps} className="shrink-0 cursor-grab active:cursor-grabbing touch-none">
+                              <GripVertical className="h-4 w-4 text-muted-foreground/30" />
+                            </div>
+                            <button className="shrink-0" onClick={() => handleToggleComplete(task.id, task.status)}>
+                              {task.status === "completed" ? <CheckSquare className="h-4 w-4 text-green-600" /> : <Square className="h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground" />}
                             </button>
+                            {task.subtaskTotal > 0 ? (
+                              <button className="shrink-0" onClick={() => toggleExpand(task.id)}>
+                                {expandedTasks.has(task.id) ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </button>
+                            ) : <span className="w-3.5" />}
                             <div className="flex-1 flex items-center gap-1.5 min-w-0">
                               {task.source === "checklist_failure" && <ClipboardCheck className="h-3.5 w-3.5 text-blue-600 shrink-0" />}
                               {task.recurrenceRule && <Repeat className="h-3.5 w-3.5 text-purple-600 shrink-0" />}
-                              <span className="text-sm truncate">{task.title}</span>
+                              {editingTaskId === task.id ? (
+                                <Input
+                                  autoFocus
+                                  value={editingTitle}
+                                  onChange={(e) => setEditingTitle(e.target.value)}
+                                  onBlur={() => handleInlineTitleSave(task.id)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") handleInlineTitleSave(task.id); if (e.key === "Escape") setEditingTaskId(null); }}
+                                  className="h-7 text-sm border-none shadow-none focus-visible:ring-1 px-1"
+                                />
+                              ) : (
+                                <span
+                                  className={cn("text-sm truncate cursor-text hover:underline decoration-dotted", task.status === "completed" && "line-through")}
+                                  onClick={() => { setEditingTaskId(task.id); setEditingTitle(task.title); }}
+                                >{task.title}</span>
+                              )}
                               {task.subtaskTotal > 0 && (
-                                <span className="text-[10px] text-muted-foreground shrink-0">
-                                  {task.subtaskCompleted}/{task.subtaskTotal}
-                                </span>
+                                <span className="text-[10px] text-muted-foreground shrink-0">{task.subtaskCompleted}/{task.subtaskTotal}</span>
                               )}
                             </div>
-                            <div className="w-20 flex justify-center">
-                              <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", PRIORITY_COLORS[task.priority] || "bg-gray-200")}>
-                                {task.priority}
-                              </span>
-                            </div>
                             {canAssign && (
-                              <div className="w-24 flex justify-center">
+                              <div className="w-20 flex justify-center">
                                 {task.assigneeName ? (
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-[9px]">{getInitials(task.assigneeName)}</AvatarFallback>
-                                  </Avatar>
+                                  <Avatar className="h-6 w-6"><AvatarFallback className="text-[9px]">{getInitials(task.assigneeName)}</AvatarFallback></Avatar>
                                 ) : (
                                   <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30" />
                                 )}
@@ -521,69 +640,142 @@ export default function TasksPage() {
                             <div className="w-24 text-center text-xs text-muted-foreground">
                               {task.dueDate ? formatDate(task.dueDate) : "—"}
                             </div>
-                            <div className="w-28 flex gap-1 overflow-hidden">
+                            <div className="w-24 flex gap-1 overflow-hidden">
                               {task.tags.slice(0, 2).map((t) => (
                                 <Badge key={t.tag.id} variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">{t.tag.name}</Badge>
                               ))}
-                              {task.tags.length > 2 && (
-                                <span className="text-[10px] text-muted-foreground">+{task.tags.length - 2}</span>
-                              )}
+                              {task.tags.length > 2 && <span className="text-[10px] text-muted-foreground">+{task.tags.length - 2}</span>}
+                            </div>
+                            <div className="flex gap-0.5 shrink-0">
+                              <button className="p-1 rounded hover:bg-muted" onClick={() => startAddSubtask(task.id)} title="Add subtask">
+                                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                              </button>
+                              <button className="p-1 rounded hover:bg-muted" onClick={() => openTaskPanel(task.id)} title="View details">
+                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              </button>
                             </div>
                           </div>
+
+                          {/* Desktop Subtask Rows */}
+                          {expandedTasks.has(task.id) && (
+                            <div className="hidden md:block">
+                              {task.subtasks.map((st) => (
+                                <div key={st.id} className="flex items-center gap-2 px-3 py-1.5 border-b ml-8 border-l-2 border-l-green-400 hover:bg-muted/30">
+                                  <span className="w-5" />
+                                  <button className="shrink-0" onClick={() => handleInlineSubtaskToggle(st.id, st.status)}>
+                                    {st.status === "completed" ? <CheckSquare className="h-3.5 w-3.5 text-green-600" /> : <Square className="h-3.5 w-3.5 text-muted-foreground/40" />}
+                                  </button>
+                                  <span className={cn("text-sm flex-1", st.status === "completed" && "line-through text-muted-foreground")}>{st.title}</span>
+                                  {st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                </div>
+                              ))}
+                              {addingSubtaskForId === task.id && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 ml-8 border-l-2 border-l-green-400">
+                                  <span className="w-5" />
+                                  <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <Input
+                                    autoFocus
+                                    value={inlineSubtaskTitle}
+                                    onChange={(e) => setInlineSubtaskTitle(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleInlineAddSubtask(task.id); if (e.key === "Escape") setAddingSubtaskForId(null); }}
+                                    onBlur={() => { if (!inlineSubtaskTitle.trim()) setAddingSubtaskForId(null); }}
+                                    placeholder="Add subtask..."
+                                    className="h-7 text-sm border-none shadow-none focus-visible:ring-1 px-1"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Mobile Card */}
                           <div
                             className={cn(
-                              "md:hidden px-3 py-2.5 border-b last:border-b-0 cursor-pointer active:bg-muted/50",
+                              "md:hidden px-3 py-2.5 border-b last:border-b-0",
                               isAssignedToMe && "bg-blue-50/50",
                               task.status === "completed" && "opacity-60"
                             )}
-                            onClick={() => openTaskPanel(task.id)}
                           >
                             <div className="flex items-start gap-2">
-                              <button
-                                className="shrink-0 mt-0.5"
-                                onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}
-                              >
-                                {task.status === "completed" ? (
-                                  <CheckSquare className="h-5 w-5 text-green-600" />
-                                ) : (
-                                  <Square className="h-5 w-5 text-muted-foreground/50" />
-                                )}
+                              <button className="shrink-0 mt-0.5" onClick={() => handleToggleComplete(task.id, task.status)}>
+                                {task.status === "completed" ? <CheckSquare className="h-5 w-5 text-green-600" /> : <Square className="h-5 w-5 text-muted-foreground/50" />}
                               </button>
+                              {task.subtaskTotal > 0 && (
+                                <button className="shrink-0 mt-0.5" onClick={() => toggleExpand(task.id)}>
+                                  {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                                </button>
+                              )}
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {task.source === "checklist_failure" && <ClipboardCheck className="h-3 w-3 text-blue-600 shrink-0" />}
-                                  {task.recurrenceRule && <Repeat className="h-3 w-3 text-purple-600 shrink-0" />}
-                                  <span className={cn("text-sm font-medium", task.status === "completed" && "line-through")}>{task.title}</span>
-                                </div>
+                                {editingTaskId === task.id ? (
+                                  <Input
+                                    autoFocus
+                                    value={editingTitle}
+                                    onChange={(e) => setEditingTitle(e.target.value)}
+                                    onBlur={() => handleInlineTitleSave(task.id)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleInlineTitleSave(task.id); if (e.key === "Escape") setEditingTaskId(null); }}
+                                    className="h-7 text-sm border-none shadow-none focus-visible:ring-1 px-1"
+                                  />
+                                ) : (
+                                  <span
+                                    className={cn("text-sm font-medium cursor-text", task.status === "completed" && "line-through")}
+                                    onClick={() => { setEditingTaskId(task.id); setEditingTitle(task.title); }}
+                                  >{task.title}</span>
+                                )}
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", PRIORITY_COLORS[task.priority])}>
-                                    {task.priority}
-                                  </span>
                                   {task.dueDate && (
                                     <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
                                       <Clock className="h-3 w-3" />{formatDate(task.dueDate)}
                                     </span>
                                   )}
-                                  {task.subtaskTotal > 0 && (
-                                    <span className="text-[11px] text-muted-foreground">{task.subtaskCompleted}/{task.subtaskTotal}</span>
-                                  )}
+                                  {task.subtaskTotal > 0 && <span className="text-[11px] text-muted-foreground">{task.subtaskCompleted}/{task.subtaskTotal}</span>}
                                   {task.tags.slice(0, 2).map((t) => (
                                     <Badge key={t.tag.id} variant="secondary" className="text-[9px] px-1 py-0">{t.tag.name}</Badge>
                                   ))}
                                 </div>
                               </div>
-                              {canAssign && task.assigneeName && (
-                                <Avatar className="h-6 w-6 shrink-0">
-                                  <AvatarFallback className="text-[9px]">{getInitials(task.assigneeName)}</AvatarFallback>
-                                </Avatar>
-                              )}
+                              <div className="flex gap-0.5 shrink-0">
+                                <button className="p-1" onClick={() => startAddSubtask(task.id)}>
+                                  <Plus className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                                <button className="p-1" onClick={() => openTaskPanel(task.id)}>
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Mobile Subtask Rows */}
+                          {expandedTasks.has(task.id) && (
+                            <div className="md:hidden">
+                              {task.subtasks.map((st) => (
+                                <div key={st.id} className="flex items-center gap-2 px-3 py-1.5 border-b ml-6 border-l-2 border-l-green-400">
+                                  <button className="shrink-0" onClick={() => handleInlineSubtaskToggle(st.id, st.status)}>
+                                    {st.status === "completed" ? <CheckSquare className="h-4 w-4 text-green-600" /> : <Square className="h-4 w-4 text-muted-foreground/40" />}
+                                  </button>
+                                  <span className={cn("text-sm flex-1", st.status === "completed" && "line-through text-muted-foreground")}>{st.title}</span>
+                                  {st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                </div>
+                              ))}
+                              {addingSubtaskForId === task.id && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 ml-6 border-l-2 border-l-green-400">
+                                  <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <Input
+                                    autoFocus
+                                    value={inlineSubtaskTitle}
+                                    onChange={(e) => setInlineSubtaskTitle(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleInlineAddSubtask(task.id); if (e.key === "Escape") setAddingSubtaskForId(null); }}
+                                    placeholder="Add subtask..."
+                                    className="h-7 text-sm border-none shadow-none focus-visible:ring-1 px-1"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
+                        </>)}
+                        </SortableTaskRow>
                       );
                     })}
+                    </SortableContext>
 
                     {/* Quick Add Row */}
                     {(
@@ -655,6 +847,7 @@ export default function TasksPage() {
             </div>
           )}
         </div>
+        </DndContext>
       )}
 
       {/* Detail Panel — Desktop: side panel, Mobile: sheet */}
@@ -870,6 +1063,24 @@ export default function TasksPage() {
           </form>
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+// ── Sortable Task Row ─────────────────────────────────
+
+function SortableTaskRow({ id, children }: { id: string; children: (dragHandleProps: Record<string, any>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+    position: "relative" as const,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
     </div>
   );
 }

@@ -1065,6 +1065,7 @@ model Task {
   templateId      String?
   completionId    String?
   externalId      String?
+  position        Float         @default(0)
   recurrenceRule  Json?
   comments        TaskComment[]
   tags            TaskItemTag[]
