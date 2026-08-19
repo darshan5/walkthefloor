@@ -418,22 +418,12 @@ export default function TasksPage() {
             className="pl-9"
           />
         </div>
-        <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v || "")}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="LOW">Low</SelectItem>
-            <SelectItem value="MEDIUM">Medium</SelectItem>
-            <SelectItem value="HIGH">High</SelectItem>
-            <SelectItem value="CRITICAL">Critical</SelectItem>
-          </SelectContent>
-        </Select>
         {tags.length > 0 && (
           <Select value={tagFilter} onValueChange={(v) => setTagFilter(v || "")}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Tag" />
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Filter by tag">
+                {tagFilter && tagFilter !== "all" ? tags.find((t) => t.id === tagFilter)?.name || "Tag" : "Filter by tag"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Tags</SelectItem>
