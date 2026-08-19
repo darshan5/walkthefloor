@@ -142,14 +142,6 @@ export default function TasksPage() {
 
   const canAssign = session?.permissions?.includes("tasks.assign");
   const canManage = session?.permissions?.includes("tasks.manage");
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
@@ -859,11 +851,11 @@ export default function TasksPage() {
       )}
 
       {/* Detail Panel — Desktop: side panel, Mobile: sheet */}
-      {/* Desktop Panel */}
+      {/* Detail Panel — full screen on mobile, side panel on desktop */}
       {panelOpen && selectedTask && (
-        <div className="hidden md:block">
-          <div className="fixed inset-0 z-40" onClick={closePanel} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-background border-l shadow-xl overflow-y-auto">
+        <>
+          <div className="fixed inset-0 z-40 md:bg-transparent bg-background/80" onClick={closePanel} />
+          <div className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 z-50 md:w-full md:max-w-lg bg-background md:border-l md:shadow-xl overflow-y-auto">
             <TaskPanelContent
               task={selectedTask}
               session={session}
@@ -892,44 +884,7 @@ export default function TasksPage() {
               formatRecurrence={formatRecurrence}
             />
           </div>
-        </div>
-      )}
-
-      {/* Mobile Panel — only rendered on mobile to prevent backdrop blur on desktop */}
-      {isMobile && (
-      <Sheet open={panelOpen && !!selectedTask} onOpenChange={(open) => { if (!open) closePanel(); }}>
-        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto p-0">
-          {selectedTask && (
-            <TaskPanelContent
-              task={selectedTask}
-              session={session}
-              canAssign={canAssign}
-              canManage={canManage}
-              canEditTask={canEditTask(selectedTask)}
-              isOwnerOrManager={isOwner(selectedTask) || canManage}
-              allTags={tags}
-              users={users}
-              editMode={editMode}
-              editForm={editForm}
-              setEditForm={setEditForm}
-              onClose={closePanel}
-              onStatusChange={(s) => handleStatusChange(selectedTask.id, s)}
-              onComment={handleComment}
-              comment={comment}
-              setComment={setComment}
-              sending={sending}
-              onSubtaskToggle={handleSubtaskToggle}
-              onAddSubtask={handleAddSubtask}
-              newSubtask={newSubtask}
-              setNewSubtask={setNewSubtask}
-              onEditMode={openEditMode}
-              onEditSave={handleEditSave}
-              actionLoading={actionLoading}
-              formatRecurrence={formatRecurrence}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+        </>
       )}
 
       {/* Create from Template Sheet */}
