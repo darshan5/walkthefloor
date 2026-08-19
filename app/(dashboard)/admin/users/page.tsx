@@ -12,7 +12,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, MapPin, UserX } from "lucide-react";
+import { Plus, MapPin, UserX, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 
@@ -40,6 +40,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [newName, setNewName] = useState("");
@@ -49,6 +50,14 @@ export default function UsersPage() {
   const [newRoleId, setNewRoleId] = useState("");
   const [newManagerId, setNewManagerId] = useState("");
   const [newHomeLocationId, setNewHomeLocationId] = useState("");
+
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editRoleId, setEditRoleId] = useState("");
+  const [editManagerId, setEditManagerId] = useState("");
+  const [editHomeLocationId, setEditHomeLocationId] = useState("");
+  const [editLocationIds, setEditLocationIds] = useState<string[]>([]);
 
   async function fetchAll() {
     const [uRes, rRes, lRes] = await Promise.all([
@@ -84,7 +93,7 @@ export default function UsersPage() {
         roleId: newRoleId,
         managerId: newManagerId || undefined,
         homeLocationId: newHomeLocationId || undefined,
-        appAccess: ["checklists", "documents", "support"],
+        appAccess: ["checklists", "tasks", "maintenance", "guest_service", "documents", "support"],
       }),
     });
     setSaving(false);
@@ -100,13 +109,74 @@ export default function UsersPage() {
     }
   }
 
+  function openEdit(u: UserRow) {
+    setEditUser(u);
+    setEditName(u.name);
+    setEditEmail(u.email || "");
+    setEditTitle(u.title || "");
+    setEditRoleId(u.role.id);
+    setEditManagerId(u.manager?.id || "");
+    setEditHomeLocationId(u.homeLocation?.id || "");
+    // Fetch assigned locations
+    fetch(`/api/v1/users/${u.id}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        const locs = data?.userLocations?.map((ul: any) => ul.locationId) || [];
+        setEditLocationIds(locs);
+      });
+  }
+
+  async function handleEdit() {
+    if (!editUser) return;
+    setSaving(true);
+
+    // Update user fields
+    const res = await fetch(`/api/v1/users/${editUser.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        email: editEmail || undefined,
+        title: editTitle || undefined,
+        roleId: editRoleId,
+        managerId: editManagerId || null,
+        homeLocationId: editHomeLocationId || null,
+      }),
+    });
+
+    if (!res.ok) {
+      setSaving(false);
+      const { error } = await res.json();
+      toast.error(error);
+      return;
+    }
+
+    // Update assigned locations
+    await fetch(`/api/v1/users/${editUser.id}/locations`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locationIds: editLocationIds }),
+    });
+
+    setSaving(false);
+    toast.success("User updated");
+    setEditUser(null);
+    fetchAll();
+  }
+
   async function handleDeactivate(userId: string, name: string) {
-    if (!confirm(`Deactivate ${name}? Their PIN will be cleared and they won't be able to log in.`)) return;
+    setEditUser(null);
     const res = await fetch(`/api/v1/users/${userId}`, { method: "DELETE" });
     if (res.ok) {
-      toast.success("User deactivated");
+      toast.success(`${name} deactivated`);
       fetchAll();
     }
+  }
+
+  function toggleLocation(locId: string) {
+    setEditLocationIds((prev) =>
+      prev.includes(locId) ? prev.filter((id) => id !== locId) : [...prev, locId]
+    );
   }
 
   return (
@@ -134,7 +204,7 @@ export default function UsersPage() {
                 <TableHead>Manager</TableHead>
                 <TableHead>Home Location</TableHead>
                 <TableHead className="text-center">Locations</TableHead>
-                <TableHead className="w-16" />
+                <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -144,7 +214,7 @@ export default function UsersPage() {
                 <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No users found.</TableCell></TableRow>
               ) : (
                 filtered.map((u) => (
-                  <TableRow key={u.id} className={!u.isActive ? "opacity-50" : ""}>
+                  <TableRow key={u.id} className={`${!u.isActive ? "opacity-50" : ""} cursor-pointer hover:bg-muted/50`} onClick={() => openEdit(u)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
@@ -153,7 +223,6 @@ export default function UsersPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">{u.name}</span>
-                            {u.isConfirmed && <Badge variant="outline" className="text-[10px] px-1 py-0">Confirmed</Badge>}
                             {!u.isActive && <Badge variant="destructive" className="text-[10px] px-1 py-0">Inactive</Badge>}
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -177,21 +246,21 @@ export default function UsersPage() {
                           {u.homeLocation.name}
                         </span>
                       ) : <span className="text-muted-foreground text-sm">—</span>}
-                      {u._count.userLocations > 0 && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          +{u._count.userLocations} assigned
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       {(u._count.userLocations + (u.homeLocation ? 1 : 0)) || "—"}
                     </TableCell>
-                    <TableCell>
-                      {u.isActive && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDeactivate(u.id, u.name)} title="Deactivate">
-                          <UserX className="h-4 w-4" />
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(u)} title="Edit">
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      )}
+                        {u.isActive && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDeactivate(u.id, u.name)} title="Deactivate">
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -248,7 +317,7 @@ export default function UsersPage() {
               <label className="text-sm font-medium">Home Location</label>
               <select className="w-full rounded-md border px-3 py-2 text-sm" value={newHomeLocationId} onChange={(e) => setNewHomeLocationId(e.target.value)}>
                 <option value="">None</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.storeNumber ? ` #${l.storeNumber}` : ""}</option>)}
               </select>
             </div>
           </div>
@@ -256,6 +325,99 @@ export default function UsersPage() {
             <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={handleCreate} disabled={saving || !newName.trim() || !newRoleId}>
               {saving ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+          {editUser && (
+            <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Name *</label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title</label>
+                  <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Role *</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={editRoleId} onChange={(e) => setEditRoleId(e.target.value)}>
+                    {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Manager</label>
+                  <select className="w-full rounded-md border px-3 py-2 text-sm" value={editManagerId} onChange={(e) => setEditManagerId(e.target.value)}>
+                    <option value="">None</option>
+                    {users.filter((u) => u.isActive && u.id !== editUser.id).map((u) => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role.name})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Home Location</label>
+                <select className="w-full rounded-md border px-3 py-2 text-sm" value={editHomeLocationId} onChange={(e) => setEditHomeLocationId(e.target.value)}>
+                  <option value="">None</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.storeNumber ? ` #${l.storeNumber}` : ""}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Assigned Locations</label>
+                <p className="text-xs text-muted-foreground">Select locations this user can access (in addition to home location)</p>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {locations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onClick={() => toggleLocation(loc.id)}
+                      className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-left transition-colors ${
+                        editLocationIds.includes(loc.id)
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        editLocationIds.includes(loc.id) ? "border-primary bg-primary text-primary-foreground" : ""
+                      }`}>
+                        {editLocationIds.includes(loc.id) && <Check className="h-3 w-3" />}
+                      </div>
+                      <span>{loc.name}</span>
+                      {loc.storeNumber && <span className="text-xs text-muted-foreground">#{loc.storeNumber}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {editUser.isActive && (
+                <div className="border-t pt-3">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeactivate(editUser.id, editUser.name)}
+                  >
+                    <UserX className="mr-1 h-3 w-3" /> Deactivate User
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={saving || !editName.trim() || !editRoleId}>
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
