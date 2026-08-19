@@ -142,6 +142,14 @@ export default function TasksPage() {
 
   const canAssign = session?.permissions?.includes("tasks.assign");
   const canManage = session?.permissions?.includes("tasks.manage");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 5 } });
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
@@ -888,7 +896,7 @@ export default function TasksPage() {
       )}
 
       {/* Mobile Panel — only rendered on mobile to prevent backdrop blur on desktop */}
-      <div className="md:hidden">
+      {isMobile && (
       <Sheet open={panelOpen && !!selectedTask} onOpenChange={(open) => { if (!open) closePanel(); }}>
         <SheetContent side="bottom" className="h-[92vh] overflow-y-auto p-0">
           {selectedTask && (
@@ -922,7 +930,7 @@ export default function TasksPage() {
           )}
         </SheetContent>
       </Sheet>
-      </div>
+      )}
 
       {/* Create from Template Sheet */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
