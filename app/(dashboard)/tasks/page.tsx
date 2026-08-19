@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   ChevronDown,
   ChevronRight,
+  GripVertical,
   Plus,
   Clock,
   ClipboardCheck,
@@ -44,11 +45,11 @@ import { formatDate, formatDateTime, getInitials } from "@/lib/utils";
 import { useLocation } from "@/components/layout/location-context";
 import { cn } from "@/lib/utils";
 
-const STATUS_GROUPS = [
-  { key: "open", label: "Open", border: "border-l-blue-500", bg: "bg-blue-500", headerBg: "bg-blue-50", text: "text-blue-700" },
-  { key: "in_progress", label: "In Progress", border: "border-l-amber-500", bg: "bg-amber-500", headerBg: "bg-amber-50", text: "text-amber-700" },
-  { key: "completed", label: "Completed", border: "border-l-green-500", bg: "bg-green-500", headerBg: "bg-green-50", text: "text-green-700" },
-  { key: "missed", label: "Missed", border: "border-l-red-500", bg: "bg-red-500", headerBg: "bg-red-50", text: "text-red-700" },
+const PRIORITY_GROUPS = [
+  { key: "CRITICAL", label: "Critical", border: "border-l-red-500", bg: "bg-red-500", headerBg: "bg-red-50", text: "text-red-700" },
+  { key: "HIGH", label: "High", border: "border-l-orange-500", bg: "bg-orange-500", headerBg: "bg-orange-50", text: "text-orange-700" },
+  { key: "MEDIUM", label: "Medium", border: "border-l-yellow-500", bg: "bg-yellow-500", headerBg: "bg-yellow-50", text: "text-yellow-700" },
+  { key: "LOW", label: "Low", border: "border-l-blue-400", bg: "bg-blue-400", headerBg: "bg-blue-50", text: "text-blue-700" },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -182,24 +183,36 @@ export default function TasksPage() {
   }
 
   // Quick add task
-  async function handleQuickAdd(status: string) {
-    const title = quickAdd[status]?.trim();
+  async function handleQuickAdd(priority: string) {
+    const title = quickAdd[priority]?.trim();
     if (!title) return;
     const locId = selectedLocationId || (locations.length === 1 ? locations[0]?.id : "");
     if (!locId) { toast.error("Select a location"); return; }
     const res = await fetch("/api/v1/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, priority: "MEDIUM", locationId: locId, status }),
+      body: JSON.stringify({ title, priority, locationId: locId }),
     });
     if (res.ok) {
-      setQuickAdd((q) => ({ ...q, [status]: "" }));
+      setQuickAdd((q) => ({ ...q, [priority]: "" }));
       toast.success("Task created");
       fetchTasks();
     } else {
       const { error } = await res.json();
       toast.error(error || "Failed");
     }
+  }
+
+  // Toggle task complete
+  async function handleToggleComplete(taskId: string, currentStatus: string) {
+    const newStatus = currentStatus === "completed" ? "open" : "completed";
+    const res = await fetch(`/api/v1/tasks/${taskId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) { fetchTasks(); }
+    else { const { error } = await res.json(); toast.error(error); }
   }
 
   // Status change
@@ -361,10 +374,11 @@ export default function TasksPage() {
     return true;
   });
 
-  const grouped = STATUS_GROUPS.map((g) => ({
+  const grouped = PRIORITY_GROUPS.map((g) => ({
     ...g,
-    tasks: filteredTasks.filter((t) => t.status === g.key),
-  })).filter((g) => g.tasks.length > 0 || g.key === "open" || g.key === "in_progress");
+    tasks: filteredTasks.filter((t) => t.priority === g.key && t.status !== "completed" && t.status !== "missed"),
+  }));
+  const completedTasks = filteredTasks.filter((t) => t.status === "completed" || t.status === "missed");
 
   const isOwner = (task: TaskItem | TaskDetail) => session?.id === task.createdById;
   const canEditTask = (task: TaskItem | TaskDetail) => isOwner(task) || canManage;
@@ -472,10 +486,22 @@ export default function TasksPage() {
                           <div
                             className={cn(
                               "hidden md:flex items-center gap-2 px-3 py-2 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors",
-                              isAssignedToMe && "bg-blue-50/50"
+                              isAssignedToMe && "bg-blue-50/50",
+                              task.status === "completed" && "opacity-60"
                             )}
                             onClick={() => openTaskPanel(task.id)}
                           >
+                            <GripVertical className="h-4 w-4 text-muted-foreground/30 shrink-0 cursor-grab" />
+                            <button
+                              className="shrink-0"
+                              onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}
+                            >
+                              {task.status === "completed" ? (
+                                <CheckSquare className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Square className="h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground" />
+                              )}
+                            </button>
                             <div className="flex-1 flex items-center gap-1.5 min-w-0">
                               {task.source === "checklist_failure" && <ClipboardCheck className="h-3.5 w-3.5 text-blue-600 shrink-0" />}
                               {task.recurrenceRule && <Repeat className="h-3.5 w-3.5 text-purple-600 shrink-0" />}
@@ -519,16 +545,27 @@ export default function TasksPage() {
                           <div
                             className={cn(
                               "md:hidden px-3 py-2.5 border-b last:border-b-0 cursor-pointer active:bg-muted/50",
-                              isAssignedToMe && "bg-blue-50/50"
+                              isAssignedToMe && "bg-blue-50/50",
+                              task.status === "completed" && "opacity-60"
                             )}
                             onClick={() => openTaskPanel(task.id)}
                           >
-                            <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2">
+                              <button
+                                className="shrink-0 mt-0.5"
+                                onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}
+                              >
+                                {task.status === "completed" ? (
+                                  <CheckSquare className="h-5 w-5 text-green-600" />
+                                ) : (
+                                  <Square className="h-5 w-5 text-muted-foreground/50" />
+                                )}
+                              </button>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {task.source === "checklist_failure" && <ClipboardCheck className="h-3 w-3 text-blue-600 shrink-0" />}
                                   {task.recurrenceRule && <Repeat className="h-3 w-3 text-purple-600 shrink-0" />}
-                                  <span className="text-sm font-medium">{task.title}</span>
+                                  <span className={cn("text-sm font-medium", task.status === "completed" && "line-through")}>{task.title}</span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                                   <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", PRIORITY_COLORS[task.priority])}>
@@ -559,7 +596,7 @@ export default function TasksPage() {
                     })}
 
                     {/* Quick Add Row */}
-                    {(group.key === "open" || group.key === "in_progress") && (
+                    {(
                       <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
                         <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
@@ -573,7 +610,7 @@ export default function TasksPage() {
                     )}
 
                     {/* Empty state */}
-                    {group.tasks.length === 0 && group.key !== "open" && group.key !== "in_progress" && (
+                    {group.tasks.length === 0 && (
                       <div className="px-3 py-4 text-center text-xs text-muted-foreground">No tasks</div>
                     )}
                   </div>
@@ -581,6 +618,52 @@ export default function TasksPage() {
               </div>
             );
           })}
+
+          {/* Completed Section */}
+          {completedTasks.length > 0 && (
+            <div className={cn("rounded-lg border border-l-4 border-l-green-500")}>
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2.5 bg-green-50"
+                onClick={() => setCollapsed((c) => ({ ...c, completed: !c.completed }))}
+              >
+                {collapsed.completed ? <ChevronRight className="h-4 w-4 text-green-700" /> : <ChevronDown className="h-4 w-4 text-green-700" />}
+                <span className="text-sm font-semibold text-green-700">Completed</span>
+                <span className="text-xs text-green-600 ml-1">({completedTasks.length})</span>
+              </button>
+              {!collapsed.completed && (
+                <div>
+                  {completedTasks.map((task) => (
+                    <div key={task.id}>
+                      {/* Desktop */}
+                      <div
+                        className="hidden md:flex items-center gap-2 px-3 py-2 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 opacity-60"
+                        onClick={() => openTaskPanel(task.id)}
+                      >
+                        <GripVertical className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                        <button className="shrink-0" onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}>
+                          <CheckSquare className="h-4 w-4 text-green-600" />
+                        </button>
+                        <span className="text-sm truncate flex-1 line-through">{task.title}</span>
+                        <div className="w-24 text-center text-xs text-muted-foreground">
+                          {task.dueDate ? formatDate(task.dueDate) : "—"}
+                        </div>
+                      </div>
+                      {/* Mobile */}
+                      <div
+                        className="md:hidden flex items-center gap-2 px-3 py-2.5 border-b last:border-b-0 cursor-pointer opacity-60"
+                        onClick={() => openTaskPanel(task.id)}
+                      >
+                        <button className="shrink-0" onClick={(e) => { e.stopPropagation(); handleToggleComplete(task.id, task.status); }}>
+                          <CheckSquare className="h-5 w-5 text-green-600" />
+                        </button>
+                        <span className="text-sm line-through flex-1">{task.title}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -588,7 +671,7 @@ export default function TasksPage() {
       {/* Desktop Panel */}
       {panelOpen && selectedTask && (
         <div className="hidden md:block">
-          <div className="fixed inset-0 z-40 bg-black/20" onClick={closePanel} />
+          <div className="fixed inset-0 z-40" onClick={closePanel} />
           <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-background border-l shadow-xl overflow-y-auto">
             <TaskPanelContent
               task={selectedTask}
@@ -915,9 +998,16 @@ function TaskPanelContent({
 
       {/* Status + Actions */}
       <div className="flex items-center gap-2 flex-wrap">
-        {STATUS_GROUPS.map((g) => g.key === task.status && (
-          <span key={g.key} className={cn("text-xs font-medium px-2.5 py-1 rounded-full", g.headerBg, g.text)}>{g.label}</span>
-        ))}
+        {(() => {
+          const s: Record<string, { label: string; bg: string; text: string }> = {
+            open: { label: "Open", bg: "bg-blue-50", text: "text-blue-700" },
+            in_progress: { label: "In Progress", bg: "bg-amber-50", text: "text-amber-700" },
+            completed: { label: "Completed", bg: "bg-green-50", text: "text-green-700" },
+            missed: { label: "Missed", bg: "bg-red-50", text: "text-red-700" },
+          };
+          const st = s[task.status] || s.open;
+          return <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", st.bg, st.text)}>{st.label}</span>;
+        })()}
         {!isTerminal && task.status === "open" && (
           <Button size="sm" variant="outline" onClick={() => onStatusChange("in_progress")} disabled={actionLoading}>
             <Play className="mr-1 h-3 w-3" />Start
