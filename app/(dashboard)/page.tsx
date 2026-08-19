@@ -6,7 +6,7 @@ import { ComplianceBar } from "@/components/data/compliance-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ClipboardCheck, AlertTriangle, XCircle, Wrench, MessageSquare,
+  ClipboardCheck, AlertTriangle, XCircle, Wrench, MessageSquare, CheckSquare,
   MapPin, ShieldAlert, TrendingUp, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { useLocation } from "@/components/layout/location-context";
 type Dashboard = {
   checklists: { total: number; completed: number; missed: number; pending: number };
   correctiveActions: { open: number; overdue: number };
+  tasks: { urgent: number; overdue: number };
   complaints: { open: number };
   maintenance: { pendingApproval: number };
   guestService: { needsResponse: number; osat: { lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null } };
@@ -61,13 +62,13 @@ export default function DashboardPage() {
             onClick={() => {}}
           />
         </Link>
-        <Link href="/checklists/corrective-actions">
+        <Link href="/tasks">
           <StatsCard
-            title="Open CAs"
-            value={data.correctiveActions.open}
-            subtitle={data.correctiveActions.overdue > 0 ? `${data.correctiveActions.overdue} overdue` : "None overdue"}
-            icon={AlertTriangle}
-            variant={data.correctiveActions.overdue > 0 ? "danger" : data.correctiveActions.open > 0 ? "warning" : "success"}
+            title="Urgent Tasks"
+            value={data.tasks.urgent}
+            subtitle={data.tasks.overdue > 0 ? `${data.tasks.overdue} overdue` : "None overdue"}
+            icon={CheckSquare}
+            variant={data.tasks.overdue > 0 ? "danger" : data.tasks.urgent > 0 ? "warning" : "success"}
             onClick={() => {}}
           />
         </Link>
@@ -187,13 +188,13 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/checklists/corrective-actions">
+        <Link href="/tasks">
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              <CheckSquare className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="font-medium text-sm">Corrective Actions</p>
-                <p className="text-xs text-muted-foreground">{data.correctiveActions.open} open</p>
+                <p className="font-medium text-sm">Tasks</p>
+                <p className="text-xs text-muted-foreground">{data.tasks.urgent} urgent, {data.tasks.overdue} overdue</p>
               </div>
             </CardContent>
           </Card>

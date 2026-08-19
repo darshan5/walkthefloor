@@ -22,6 +22,8 @@ export async function getRoleDashboard(
     openCAs,
     overdueCAs,
     openComplaints,
+    urgentTasks,
+    overdueTasks,
     pendingMaintenance,
     myFailures,
     guestNeedsResponse,
@@ -44,6 +46,12 @@ export async function getRoleDashboard(
     prisma.complaint.count({
       where: { location: { organizationId }, status: { in: ["new", "assigned", "in_progress"] }, ...locationFilter },
     }),
+    prisma.task.count({
+      where: { organizationId, locationId: { in: locationIds }, status: { in: ["open", "in_progress"] }, priority: { in: ["HIGH", "CRITICAL"] }, parentId: null },
+    }),
+    prisma.task.count({
+      where: { organizationId, locationId: { in: locationIds }, status: { in: ["open", "in_progress"] }, dueDate: { lt: today }, parentId: null },
+    }),
     prisma.workOrder.count({
       where: { location: { organizationId }, status: "submitted", ...locationFilter },
     }),
@@ -60,6 +68,7 @@ export async function getRoleDashboard(
   const base = {
     checklists: { total: todayInstances, completed: completedToday, missed: missedToday, pending: todayInstances - completedToday - missedToday },
     correctiveActions: { open: openCAs, overdue: overdueCAs },
+    tasks: { urgent: urgentTasks, overdue: overdueTasks },
     complaints: { open: openComplaints },
     maintenance: { pendingApproval: pendingMaintenance },
     guestService: { needsResponse: guestNeedsResponse, osat: guestOsat },
