@@ -66,7 +66,7 @@ export default function ChecklistExecutionPage() {
     if (res.ok) {
       const { data } = await res.json();
       if (!data.isCompliant) {
-        toast.warning("Non-compliant reading — Corrective Action created");
+        toast.warning("Non-compliant reading — Task created");
       }
       fetchInstance();
     } else {

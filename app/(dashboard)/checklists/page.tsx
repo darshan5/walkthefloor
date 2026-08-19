@@ -82,7 +82,7 @@ export default function BookPage() {
     setSavingTaskId(null);
     if (res.ok) {
       const { data } = await res.json();
-      if (!data.isCompliant) toast.warning("Non-compliant — Corrective Action created");
+      if (!data.isCompliant) toast.warning("Non-compliant — Task created");
       fetchDetail(detail.id);
       fetchInstances();
     } else {

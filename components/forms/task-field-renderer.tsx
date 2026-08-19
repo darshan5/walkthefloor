@@ -90,7 +90,7 @@ export function TaskFieldRenderer({ task, completion, onComplete, saving, onAdva
       {isNonCompliant && (
         <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
           <AlertTriangle className="h-4 w-4" />
-          Non-compliant — Corrective Action created
+          Non-compliant — Task created
         </p>
       )}
     </div>
