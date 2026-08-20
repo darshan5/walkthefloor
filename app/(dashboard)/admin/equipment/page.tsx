@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/data/status-badge";
-import { Wrench, MapPin, AlertTriangle, Copy, Search, DollarSign, Shield, Clock, X, Pencil } from "lucide-react";
+import { QRCodeSVG } from "@/components/data/qr-code";
+import { Wrench, MapPin, AlertTriangle, Copy, Search, DollarSign, Shield, Clock, X, Pencil, Printer, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { useLocation } from "@/components/layout/location-context";
@@ -73,10 +74,12 @@ export default function EquipmentPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [printMode, setPrintMode] = useState(false);
   const [editForm, setEditForm] = useState({
     model: "", serialNumber: "", installDate: "", warrantyExpiry: "",
     purchaseCost: "", condition: "GOOD", trackingCode: "", notes: "",
   });
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchInstances(); }, [selectedLocationId]);
 
@@ -168,6 +171,42 @@ export default function EquipmentPage() {
     return { label: "Active", color: "bg-green-50 text-green-700 border-green-200" };
   }
 
+  function handlePrintBatch() {
+    setPrintMode(true);
+    setTimeout(() => {
+      window.print();
+      setPrintMode(false);
+    }, 500);
+  }
+
+  function handlePrintSingle(eq: EquipmentDetail) {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    const url = `${window.location.origin}/equipment/${eq.trackingCode}`;
+    printWindow.document.write(`
+      <html><head><title>QR Code - ${eq.instanceName}</title>
+      <style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+      .card{text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;max-width:300px}
+      .name{font-size:18px;font-weight:bold;margin-top:12px}.type{color:#666;font-size:14px}
+      .loc{color:#999;font-size:12px;margin-top:4px}.code{font-family:monospace;font-size:11px;color:#999;margin-top:8px}
+      </style></head><body><div class="card">
+      <div id="qr"></div>
+      <p class="name">${eq.instanceName}</p>
+      <p class="type">${eq.equipmentType.name}</p>
+      <p class="loc">${eq.location.name}</p>
+      <p class="code">${eq.trackingCode}</p>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+      <script>
+        QRCode.toCanvas(document.createElement('canvas'),${JSON.stringify(url)},{width:200,margin:1},function(err,canvas){
+          if(!err)document.getElementById('qr').appendChild(canvas);
+          setTimeout(function(){window.print();window.close()},300);
+        });
+      </script>
+      </body></html>
+    `);
+  }
+
   const filtered = instances.filter((eq) =>
     !search ||
     eq.instanceName.toLowerCase().includes(search.toLowerCase()) ||
@@ -175,6 +214,8 @@ export default function EquipmentPage() {
     eq.serialNumber?.toLowerCase().includes(search.toLowerCase()) ||
     eq.location.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://walkthefloor.com";
 
   return (
     <div className="space-y-4">
@@ -185,14 +226,20 @@ export default function EquipmentPage() {
         </p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, type, serial, location..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, type, serial, location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button variant="outline" onClick={handlePrintBatch} disabled={filtered.length === 0}>
+          <Printer className="mr-1 h-4 w-4" />
+          Print QR Codes
+        </Button>
       </div>
 
       {loading ? (
@@ -260,7 +307,38 @@ export default function EquipmentPage() {
         </Card>
       )}
 
-      {/* Detail Side Panel — no blur */}
+      {/* Print-friendly QR batch view */}
+      {printMode && (
+        <div className="fixed inset-0 z-[100] bg-white p-8 overflow-auto print:static print:p-0" ref={printRef}>
+          <style>{`
+            @media print {
+              body > *:not(.print-qr-batch) { display: none !important; }
+              .print-qr-batch { display: block !important; }
+            }
+          `}</style>
+          <div className="print-qr-batch">
+            <h2 className="text-lg font-bold mb-4 print:text-base">Equipment QR Codes {selectedLocationId ? "" : "— All Locations"}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 print:grid-cols-3 print:gap-2">
+              {filtered.map((eq) => (
+                <div key={eq.id} className="border rounded-lg p-3 text-center break-inside-avoid">
+                  {eq.trackingCode && (
+                    <QRCodeSVG value={`${baseUrl}/equipment/${eq.trackingCode}`} size={120} />
+                  )}
+                  <p className="font-bold text-sm mt-2">{eq.instanceName}</p>
+                  <p className="text-xs text-muted-foreground">{eq.equipmentType.name}</p>
+                  <p className="text-xs text-muted-foreground">{eq.location.name}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground mt-1">{eq.trackingCode || "—"}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 print:hidden">
+              <Button variant="outline" onClick={() => setPrintMode(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Side Panel */}
       {panelOpen && selectedEquipment && (
         <>
           <div className="fixed inset-0 z-40 md:bg-transparent bg-background/80" onClick={closePanel} />
@@ -292,6 +370,22 @@ export default function EquipmentPage() {
 
               {!editMode ? (
                 <>
+                  {/* QR Code */}
+                  {selectedEquipment.trackingCode && (
+                    <div className="rounded-lg border p-4 flex flex-col items-center gap-2">
+                      <QRCodeSVG value={`${baseUrl}/equipment/${selectedEquipment.trackingCode}`} size={160} />
+                      <p className="text-xs font-mono text-muted-foreground">{selectedEquipment.trackingCode}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => copyTrackingUrl(selectedEquipment.trackingCode!)}>
+                          <Copy className="mr-1 h-3 w-3" /> Copy URL
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handlePrintSingle(selectedEquipment)}>
+                          <Printer className="mr-1 h-3 w-3" /> Print
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Details Grid */}
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -337,21 +431,6 @@ export default function EquipmentPage() {
                     </div>
                   </div>
 
-                  {/* Tracking Code */}
-                  {selectedEquipment.trackingCode && (
-                    <div className="rounded-lg border p-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium flex items-center gap-1"><Shield className="h-3 w-3" /> Tracking Code</p>
-                          <p className="text-lg font-mono font-bold mt-0.5">{selectedEquipment.trackingCode}</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => copyTrackingUrl(selectedEquipment.trackingCode!)}>
-                          <Copy className="mr-1 h-3 w-3" /> Copy URL
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
                   {selectedEquipment.notes && (
                     <div>
                       <p className="text-sm text-muted-foreground">Notes</p>
@@ -381,7 +460,6 @@ export default function EquipmentPage() {
                       </Card>
                     </div>
 
-                    {/* Repair vs Replace Warning */}
                     {selectedEquipment.purchaseCost && selectedEquipment.totalActualCost > selectedEquipment.purchaseCost * 0.5 && (
                       <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
                         <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />

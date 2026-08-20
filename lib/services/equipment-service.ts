@@ -167,7 +167,7 @@ export async function updateEquipmentDetails(
 }
 
 export async function getAllEquipmentInstances(organizationId: string, locationId?: string) {
-  return prisma.locationEquipment.findMany({
+  const instances = await prisma.locationEquipment.findMany({
     where: {
       location: { organizationId },
       ...(locationId && { locationId }),
@@ -180,5 +180,16 @@ export async function getAllEquipmentInstances(organizationId: string, locationI
     },
     orderBy: [{ location: { name: "asc" } }, { equipmentType: { name: "asc" } }, { instanceName: "asc" }],
   });
+
+  const needsCodes = instances.filter((i) => !i.trackingCode);
+  if (needsCodes.length > 0) {
+    for (const eq of needsCodes) {
+      const code = generateTrackingCode();
+      await prisma.locationEquipment.update({ where: { id: eq.id }, data: { trackingCode: code } });
+      (eq as any).trackingCode = code;
+    }
+  }
+
+  return instances;
 }
 

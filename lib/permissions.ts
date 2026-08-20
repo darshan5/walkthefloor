@@ -97,6 +97,17 @@ export const BUILT_IN_ROLES = {
       PERMISSIONS.DOCUMENTS_VIEW,
     ],
   },
+  MAINTENANCE_TECH: {
+    name: "Maintenance",
+    permissions: [
+      PERMISSIONS.MAINTENANCE_VIEW,
+      PERMISSIONS.MAINTENANCE_SUBMIT,
+      PERMISSIONS.MAINTENANCE_REPORTS,
+      PERMISSIONS.TASKS_VIEW,
+      PERMISSIONS.TASKS_CREATE,
+      PERMISSIONS.DOCUMENTS_VIEW,
+    ],
+  },
   TEAM_MEMBER: {
     name: "Team Member",
     permissions: [
