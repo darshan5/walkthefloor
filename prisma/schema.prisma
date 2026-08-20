@@ -199,6 +199,10 @@ model LocationEquipment {
   serialNumber    String?
   installDate     DateTime?
   warrantyExpiry  DateTime?
+  purchaseCost    Float?
+  condition       String?       @default("GOOD")
+  trackingCode    String?       @unique
+  notes           String?       @db.Text
   workOrders      WorkOrder[]
   instanceTasks   InstanceTask[]
   createdAt       DateTime      @default(now())

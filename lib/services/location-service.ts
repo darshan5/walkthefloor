@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { CreateLocationInput, UpdateLocationInput } from "@/lib/validators/location";
+import { generateTrackingCode } from "@/lib/services/equipment-service";
 
 export async function getLocations(organizationId: string) {
   return prisma.location.findMany({
@@ -116,6 +117,7 @@ export async function addEquipmentToLocation(
       equipmentTypeId: data.equipmentTypeId,
       instanceName: data.instanceName,
       sortOrder: data.sortOrder ?? 0,
+      trackingCode: generateTrackingCode(),
     },
     include: {
       equipmentType: { select: { id: true, name: true, category: true } },
