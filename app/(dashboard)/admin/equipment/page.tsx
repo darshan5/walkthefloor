@@ -14,17 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Wrench, MapPin, AlertTriangle, Copy, Search, DollarSign, Shield, Clock } from "lucide-react";
+import { StatusBadge } from "@/components/data/status-badge";
+import { Wrench, MapPin, AlertTriangle, Copy, Search, DollarSign, Shield, Clock, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { useLocation } from "@/components/layout/location-context";
@@ -76,12 +70,12 @@ export default function EquipmentPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentDetail | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     model: "", serialNumber: "", installDate: "", warrantyExpiry: "",
-    purchaseCost: "", condition: "GOOD", notes: "",
+    purchaseCost: "", condition: "GOOD", trackingCode: "", notes: "",
   });
 
   useEffect(() => { fetchInstances(); }, [selectedLocationId]);
@@ -103,9 +97,15 @@ export default function EquipmentPage() {
     if (res.ok) {
       const { data } = await res.json();
       setSelectedEquipment(data);
-      setDetailOpen(true);
+      setPanelOpen(true);
       setEditMode(false);
     }
+  }
+
+  function closePanel() {
+    setPanelOpen(false);
+    setSelectedEquipment(null);
+    setEditMode(false);
   }
 
   function openEdit() {
@@ -117,6 +117,7 @@ export default function EquipmentPage() {
       warrantyExpiry: selectedEquipment.warrantyExpiry ? selectedEquipment.warrantyExpiry.split("T")[0] : "",
       purchaseCost: selectedEquipment.purchaseCost?.toString() || "",
       condition: selectedEquipment.condition || "GOOD",
+      trackingCode: selectedEquipment.trackingCode || "",
       notes: selectedEquipment.notes || "",
     });
     setEditMode(true);
@@ -132,6 +133,7 @@ export default function EquipmentPage() {
       warrantyExpiry: editForm.warrantyExpiry || null,
       purchaseCost: editForm.purchaseCost ? parseFloat(editForm.purchaseCost) : null,
       condition: editForm.condition,
+      trackingCode: editForm.trackingCode || null,
       notes: editForm.notes || null,
     };
     const res = await fetch(`/api/v1/equipment-instances/${selectedEquipment.id}`, {
@@ -161,9 +163,9 @@ export default function EquipmentPage() {
     const expiry = new Date(expiryDate);
     const now = new Date();
     const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysLeft < 0) return { label: "Expired", color: "text-red-600" };
-    if (daysLeft <= 30) return { label: `Expiring in ${daysLeft} days`, color: "text-amber-600" };
-    return { label: "Active", color: "text-green-600" };
+    if (daysLeft < 0) return { label: "Expired", color: "bg-red-50 text-red-700 border-red-200" };
+    if (daysLeft <= 30) return { label: `Expiring in ${daysLeft}d`, color: "bg-amber-50 text-amber-700 border-amber-200" };
+    return { label: "Active", color: "bg-green-50 text-green-700 border-green-200" };
   }
 
   const filtered = instances.filter((eq) =>
@@ -243,7 +245,7 @@ export default function EquipmentPage() {
                       </TableCell>
                       <TableCell>
                         {warranty ? (
-                          <span className={`text-xs font-medium ${warranty.color}`}>{warranty.label}</span>
+                          <Badge variant="outline" className={warranty.color}>{warranty.label}</Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -258,228 +260,234 @@ export default function EquipmentPage() {
         </Card>
       )}
 
-      {/* Equipment Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {selectedEquipment && !editMode && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  {selectedEquipment.instanceName}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Type</p>
-                    <p className="font-medium">{selectedEquipment.equipmentType.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Location</p>
-                    <p className="font-medium flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {selectedEquipment.location.name}
-                    </p>
-                  </div>
-                  {selectedEquipment.model && (
-                    <div>
-                      <p className="text-muted-foreground">Model</p>
-                      <p className="font-medium">{selectedEquipment.model}</p>
-                    </div>
+      {/* Detail Side Panel — no blur */}
+      {panelOpen && selectedEquipment && (
+        <>
+          <div className="fixed inset-0 z-40 md:bg-transparent bg-background/80" onClick={closePanel} />
+          <div className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 z-50 md:w-full md:max-w-xl bg-background md:border-l md:shadow-xl overflow-y-auto">
+            <div className="p-5 space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    {selectedEquipment.instanceName}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedEquipment.equipmentType.name}
+                    {selectedEquipment.model ? ` · ${selectedEquipment.model}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  {!editMode && (
+                    <Button variant="ghost" size="icon" onClick={openEdit} title="Edit">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   )}
-                  {selectedEquipment.serialNumber && (
+                  <Button variant="ghost" size="icon" onClick={closePanel}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {!editMode ? (
+                <>
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Location</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />{selectedEquipment.location.name}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Condition</p>
+                      <Badge variant="outline" className={CONDITION_COLORS[selectedEquipment.condition || "GOOD"] || ""}>
+                        {selectedEquipment.condition === "OUT_OF_SERVICE" ? "Out of Service" : selectedEquipment.condition || "GOOD"}
+                      </Badge>
+                    </div>
                     <div>
                       <p className="text-muted-foreground">Serial Number</p>
-                      <p className="font-medium">{selectedEquipment.serialNumber}</p>
+                      <p className="font-medium">{selectedEquipment.serialNumber || "—"}</p>
                     </div>
-                  )}
-                  {selectedEquipment.installDate && (
+                    <div>
+                      <p className="text-muted-foreground">Model</p>
+                      <p className="font-medium">{selectedEquipment.model || "—"}</p>
+                    </div>
                     <div>
                       <p className="text-muted-foreground">Install Date</p>
-                      <p className="font-medium">{formatDate(selectedEquipment.installDate)}</p>
+                      <p className="font-medium">{selectedEquipment.installDate ? formatDate(selectedEquipment.installDate) : "—"}</p>
                     </div>
-                  )}
-                  {selectedEquipment.purchaseCost != null && (
                     <div>
                       <p className="text-muted-foreground">Purchase Cost</p>
-                      <p className="font-medium">${selectedEquipment.purchaseCost.toFixed(2)}</p>
+                      <p className="font-medium">{selectedEquipment.purchaseCost != null ? `$${selectedEquipment.purchaseCost.toFixed(2)}` : "—"}</p>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-muted-foreground">Condition</p>
-                    <Badge variant="outline" className={CONDITION_COLORS[selectedEquipment.condition || "GOOD"] || ""}>
-                      {selectedEquipment.condition === "OUT_OF_SERVICE" ? "Out of Service" : selectedEquipment.condition || "GOOD"}
-                    </Badge>
+                    <div>
+                      <p className="text-muted-foreground">Warranty</p>
+                      {(() => {
+                        const w = getWarrantyStatus(selectedEquipment.warrantyExpiry);
+                        if (!w) return <p className="font-medium">—</p>;
+                        return (
+                          <div>
+                            <Badge variant="outline" className={w.color}>{w.label}</Badge>
+                            <p className="text-xs text-muted-foreground mt-0.5">{formatDate(selectedEquipment.warrantyExpiry!)}</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Warranty</p>
-                    {(() => {
-                      const w = getWarrantyStatus(selectedEquipment.warrantyExpiry);
-                      if (!w) return <p className="text-muted-foreground">Not set</p>;
-                      return (
+
+                  {/* Tracking Code */}
+                  {selectedEquipment.trackingCode && (
+                    <div className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <span className={`font-medium ${w.color}`}>{w.label}</span>
-                          <p className="text-xs text-muted-foreground">{formatDate(selectedEquipment.warrantyExpiry!)}</p>
+                          <p className="text-sm font-medium flex items-center gap-1"><Shield className="h-3 w-3" /> Tracking Code</p>
+                          <p className="text-lg font-mono font-bold mt-0.5">{selectedEquipment.trackingCode}</p>
                         </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Tracking Code */}
-                {selectedEquipment.trackingCode && (
-                  <div className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium flex items-center gap-1"><Shield className="h-3 w-3" /> Tracking Code</p>
-                        <p className="text-lg font-mono font-bold mt-0.5">{selectedEquipment.trackingCode}</p>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => copyTrackingUrl(selectedEquipment.trackingCode!)}>
-                        <Copy className="mr-1 h-3 w-3" /> Copy URL
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {selectedEquipment.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Notes</p>
-                    <p className="text-sm whitespace-pre-wrap">{selectedEquipment.notes}</p>
-                  </div>
-                )}
-
-                <Separator />
-
-                {/* Maintenance Cost Summary */}
-                <div>
-                  <h3 className="text-sm font-semibold flex items-center gap-1 mb-2">
-                    <DollarSign className="h-4 w-4" /> Maintenance Costs
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Card>
-                      <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground">Total Spend</p>
-                        <p className="text-xl font-bold">${selectedEquipment.totalActualCost.toFixed(2)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground">Work Orders</p>
-                        <p className="text-xl font-bold">{selectedEquipment.maintenanceHistory.length}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Repair vs Replace Warning */}
-                  {selectedEquipment.purchaseCost && selectedEquipment.totalActualCost > selectedEquipment.purchaseCost * 0.5 && (
-                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">Consider Replacement</p>
-                        <p className="text-xs text-amber-700">
-                          Maintenance costs (${selectedEquipment.totalActualCost.toFixed(2)}) have exceeded {Math.round(selectedEquipment.totalActualCost / selectedEquipment.purchaseCost * 100)}% of purchase price (${selectedEquipment.purchaseCost.toFixed(2)}).
-                        </p>
+                        <Button size="sm" variant="outline" onClick={() => copyTrackingUrl(selectedEquipment.trackingCode!)}>
+                          <Copy className="mr-1 h-3 w-3" /> Copy URL
+                        </Button>
                       </div>
                     </div>
                   )}
-                </div>
 
-                {/* Maintenance History */}
-                {selectedEquipment.maintenanceHistory.length > 0 && (
+                  {selectedEquipment.notes && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Notes</p>
+                      <p className="text-sm whitespace-pre-wrap">{selectedEquipment.notes}</p>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Maintenance Cost Summary */}
                   <div>
                     <h3 className="text-sm font-semibold flex items-center gap-1 mb-2">
-                      <Clock className="h-4 w-4" /> Maintenance History
+                      <DollarSign className="h-4 w-4" /> Maintenance Costs
                     </h3>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {selectedEquipment.maintenanceHistory.map((wo) => (
-                        <div key={wo.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-                          <div>
-                            <p className="font-medium">{wo.title}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(wo.createdAt)} · {wo.status}</p>
-                          </div>
-                          <div className="text-right">
-                            {wo.actualCost != null && (
-                              <p className="font-medium">${wo.actualCost.toFixed(2)}</p>
-                            )}
-                          </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Card>
+                        <CardContent className="p-3">
+                          <p className="text-xs text-muted-foreground">Total Spend</p>
+                          <p className="text-xl font-bold">${selectedEquipment.totalActualCost.toFixed(2)}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-3">
+                          <p className="text-xs text-muted-foreground">Work Orders</p>
+                          <p className="text-xl font-bold">{selectedEquipment.maintenanceHistory.length}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Repair vs Replace Warning */}
+                    {selectedEquipment.purchaseCost && selectedEquipment.totalActualCost > selectedEquipment.purchaseCost * 0.5 && (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">Consider Replacement</p>
+                          <p className="text-xs text-amber-700">
+                            Maintenance costs (${selectedEquipment.totalActualCost.toFixed(2)}) have exceeded{" "}
+                            {Math.round(selectedEquipment.totalActualCost / selectedEquipment.purchaseCost * 100)}% of purchase price (${selectedEquipment.purchaseCost.toFixed(2)}).
+                          </p>
                         </div>
-                      ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Maintenance History */}
+                  {selectedEquipment.maintenanceHistory.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold flex items-center gap-1 mb-2">
+                        <Clock className="h-4 w-4" /> Maintenance History
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {selectedEquipment.maintenanceHistory.map((wo) => (
+                          <div key={wo.id} className="flex items-center justify-between rounded-md border p-2.5 text-sm">
+                            <div>
+                              <p className="font-medium">{wo.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <StatusBadge status={wo.status} />
+                                <span className="text-xs text-muted-foreground">{formatDate(wo.createdAt)}</span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {wo.actualCost != null ? (
+                                <p className="font-medium">${wo.actualCost.toFixed(2)}</p>
+                              ) : wo.estimatedCost != null ? (
+                                <p className="text-muted-foreground text-xs">Est. ${wo.estimatedCost.toFixed(2)}</p>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Edit Mode */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Model</label>
+                      <Input value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Serial Number</label>
+                      <Input value={editForm.serialNumber} onChange={(e) => setEditForm({ ...editForm, serialNumber: e.target.value })} />
                     </div>
                   </div>
-                )}
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={openEdit}>Edit Details</Button>
-                </DialogFooter>
-              </div>
-            </>
-          )}
-
-          {/* Edit Mode */}
-          {selectedEquipment && editMode && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Edit Equipment — {selectedEquipment.instanceName}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">Model</label>
-                    <Input value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Install Date</label>
+                      <Input type="date" value={editForm.installDate} onChange={(e) => setEditForm({ ...editForm, installDate: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Warranty Expiry</label>
+                      <Input type="date" value={editForm.warrantyExpiry} onChange={(e) => setEditForm({ ...editForm, warrantyExpiry: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Purchase Cost</label>
+                      <Input type="number" min="0" step="0.01" placeholder="$0.00" value={editForm.purchaseCost} onChange={(e) => setEditForm({ ...editForm, purchaseCost: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Condition</label>
+                      <Select value={editForm.condition} onValueChange={(v) => setEditForm({ ...editForm, condition: v || "GOOD" })}>
+                        <SelectTrigger>
+                          <SelectValue>
+                            {editForm.condition === "OUT_OF_SERVICE" ? "Out of Service" : editForm.condition}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GOOD">Good</SelectItem>
+                          <SelectItem value="FAIR">Fair</SelectItem>
+                          <SelectItem value="POOR">Poor</SelectItem>
+                          <SelectItem value="OUT_OF_SERVICE">Out of Service</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Serial Number</label>
-                    <Input value={editForm.serialNumber} onChange={(e) => setEditForm({ ...editForm, serialNumber: e.target.value })} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">Install Date</label>
-                    <Input type="date" value={editForm.installDate} onChange={(e) => setEditForm({ ...editForm, installDate: e.target.value })} />
+                    <label className="text-sm font-medium">Tracking Code</label>
+                    <Input value={editForm.trackingCode} onChange={(e) => setEditForm({ ...editForm, trackingCode: e.target.value })} placeholder="Auto-generated if empty" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Warranty Expiry</label>
-                    <Input type="date" value={editForm.warrantyExpiry} onChange={(e) => setEditForm({ ...editForm, warrantyExpiry: e.target.value })} />
+                    <label className="text-sm font-medium">Notes</label>
+                    <Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={3} />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">Purchase Cost</label>
-                    <Input type="number" min="0" step="0.01" placeholder="$0.00" value={editForm.purchaseCost} onChange={(e) => setEditForm({ ...editForm, purchaseCost: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Condition</label>
-                    <Select value={editForm.condition} onValueChange={(v) => setEditForm({ ...editForm, condition: v || "GOOD" })}>
-                      <SelectTrigger>
-                        <SelectValue>
-                          {editForm.condition === "OUT_OF_SERVICE" ? "Out of Service" : editForm.condition}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="GOOD">Good</SelectItem>
-                        <SelectItem value="FAIR">Fair</SelectItem>
-                        <SelectItem value="POOR">Poor</SelectItem>
-                        <SelectItem value="OUT_OF_SERVICE">Out of Service</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Notes</label>
-                  <Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={3} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
-                <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
