@@ -41,6 +41,7 @@ import {
   CheckSquare,
   Eye,
   MapPin,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, formatDateTime, getInitials } from "@/lib/utils";
@@ -1445,6 +1446,20 @@ function TaskPanelContent({
           locations={locations}
           onRefresh={onRefresh}
         />
+      )}
+
+      {/* Create Work Order */}
+      {canManage && !isTerminal && (
+        <div className="pt-1">
+          <a
+            href={`/maintenance?create=true&title=${encodeURIComponent(task.title)}&locationId=${task.locationId}&description=${encodeURIComponent(task.description || `From task: ${task.title}`)}`}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            <Wrench className="h-4 w-4" />
+            <span>Create Work Order</span>
+            <ChevronRight className="h-4 w-4 ml-auto" />
+          </a>
+        </div>
       )}
 
       <Separator />

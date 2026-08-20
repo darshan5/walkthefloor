@@ -210,38 +210,54 @@ async function createCorrectiveAction(
     select: { id: true },
   });
 
-  const ca = await prisma.correctiveAction.create({
+  const location = await prisma.location.findFirst({
+    where: { id: instance.locationId },
+    select: { name: true, organizationId: true },
+  });
+  const organizationId = location?.organizationId || "";
+
+  const lastTask = await prisma.task.findFirst({
+    where: { organizationId, parentId: null },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+
+  const newTask = await prisma.task.create({
     data: {
       title: `${task.title} — Non-Compliant`,
-      description: `Recorded ${actualValue}, expected ${targetValue || "compliant value"}`,
-      priority: task.isCritical ? "CRITICAL" : "MEDIUM",
+      description: `Recorded ${actualValue}, expected ${targetValue || "compliant value"}. ${validRange ? `Acceptable range: ${validRange}` : ""}`,
+      priority: task.isCritical ? "CRITICAL" : "HIGH",
+      status: "open",
+      source: "checklist_failure",
       locationId: instance.locationId,
+      organizationId,
       createdById: userId,
       assigneeId: homeUser?.id || null,
       completionId,
-      actualValue,
-      targetValue,
-      validRange,
       dueDate,
+      position: (lastTask?.position ?? 0) + 1,
     },
   });
 
-  if (task.taskType === "TEMPERATURE") {
-    const location = await prisma.location.findFirst({
-      where: { id: instance.locationId },
-      select: { name: true, organizationId: true },
-    });
-    if (location) {
-      alertManagersOnNonCompliantTemp(
-        instance.locationId,
-        location.organizationId,
-        task.title,
-        actualValue,
-        validRange,
-        location.name,
-        `/checklists/corrective-actions`
-      ).catch(() => {});
-    }
+  await prisma.taskComment.create({
+    data: {
+      taskId: newTask.id,
+      userId,
+      content: `Auto-created from checklist failure`,
+      statusChange: "open",
+    },
+  });
+
+  if (task.taskType === "TEMPERATURE" && location) {
+    alertManagersOnNonCompliantTemp(
+      instance.locationId,
+      organizationId,
+      task.title,
+      actualValue,
+      validRange,
+      location.name,
+      `/tasks/${newTask.id}`
+    ).catch(() => {});
   }
 }
 

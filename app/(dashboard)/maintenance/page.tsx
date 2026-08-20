@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,7 @@ type Vendor = { id: string; name: string; specialty: string | null; contactName:
 
 export default function MaintenancePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedLocationId, locations } = useLocation();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [counts, setCounts] = useState<Counts>({ pendingApproval: 0, approved: 0, inProgress: 0, completed: 0 });
@@ -104,6 +105,23 @@ export default function MaintenancePage() {
     fetch("/api/v1/vendors")
       .then((r) => r.json())
       .then((data) => setVendors(data?.data || []));
+
+    if (searchParams.get("create") === "true") {
+      const prefill = {
+        title: searchParams.get("title") || "",
+        description: searchParams.get("description") || "",
+        priority: "MEDIUM",
+        locationId: searchParams.get("locationId") || selectedLocationId || "",
+        equipmentId: "",
+        dueDate: "",
+        assignType: "user" as const,
+        assigneeId: "",
+        vendorId: "",
+        estimatedCost: "",
+      };
+      setForm(prefill);
+      setCreateOpen(true);
+    }
   }, []);
 
   useEffect(() => {
