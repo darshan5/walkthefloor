@@ -21,6 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ChevronDown,
   ChevronRight,
@@ -119,6 +120,7 @@ export default function TasksPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [addingSubtaskForId, setAddingSubtaskForId] = useState<string | null>(null);
+  const [dueDateTaskId, setDueDateTaskId] = useState<string | null>(null);
   const [inlineSubtaskTitle, setInlineSubtaskTitle] = useState("");
 
   // Detail panel state
@@ -259,6 +261,27 @@ export default function TasksPage() {
       body: JSON.stringify({ status: currentStatus === "completed" ? "open" : "completed" }),
     });
     fetchTasks();
+  }
+
+  async function handleAssignUser(taskId: string, userId: string | null) {
+    const res = await fetch(`/api/v1/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigneeId: userId }),
+    });
+    if (res.ok) fetchTasks();
+    else { const { error } = await res.json(); toast.error(error); }
+  }
+
+  async function handleDueDateChange(taskId: string, date: string) {
+    const res = await fetch(`/api/v1/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueDate: date ? new Date(date).toISOString() : null }),
+    });
+    setDueDateTaskId(null);
+    if (res.ok) fetchTasks();
+    else { const { error } = await res.json(); toast.error(error); }
   }
 
   async function handleInlineAddSubtask(parentId: string) {
@@ -630,17 +653,54 @@ export default function TasksPage() {
                               )}
                             </div>
                             {canAssign && (
-                              <div className="w-20 flex justify-center">
-                                {task.assigneeName ? (
-                                  <Avatar className="h-6 w-6"><AvatarFallback className="text-[9px]">{getInitials(task.assigneeName)}</AvatarFallback></Avatar>
-                                ) : (
-                                  <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30" />
-                                )}
+                              <div className="w-20 flex justify-center" onClick={(e) => e.stopPropagation()}>
+                                <Popover>
+                                  <PopoverTrigger className="cursor-pointer">
+                                    {task.assigneeName ? (
+                                      <Avatar className="h-6 w-6 hover:ring-2 hover:ring-primary/50 transition-all"><AvatarFallback className="text-[9px]">{getInitials(task.assigneeName)}</AvatarFallback></Avatar>
+                                    ) : (
+                                      <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors" />
+                                    )}
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-48 p-1" align="start">
+                                    <div className="max-h-48 overflow-y-auto">
+                                      {task.assigneeId && (
+                                        <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted text-muted-foreground" onClick={() => handleAssignUser(task.id, null)}>
+                                          Unassign
+                                        </button>
+                                      )}
+                                      {users.map((u) => (
+                                        <button key={u.id} className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted", task.assigneeId === u.id && "bg-muted font-medium")} onClick={() => handleAssignUser(task.id, u.id)}>
+                                          <Avatar className="h-5 w-5"><AvatarFallback className="text-[8px]">{getInitials(u.name)}</AvatarFallback></Avatar>
+                                          {u.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             )}
-                            <div className="w-24 text-center text-xs text-muted-foreground">
-                              {task.dueDate ? formatDate(task.dueDate) : "—"}
-                            </div>
+                            <Popover>
+                              <PopoverTrigger
+                                className="w-24 text-center text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {task.dueDate ? formatDate(task.dueDate) : "—"}
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-2" align="center">
+                                <Input
+                                  type="date"
+                                  defaultValue={task.dueDate ? task.dueDate.split("T")[0] : ""}
+                                  onChange={(e) => handleDueDateChange(task.id, e.target.value)}
+                                  className="w-40"
+                                />
+                                {task.dueDate && (
+                                  <Button size="sm" variant="ghost" className="w-full mt-1 text-xs" onClick={() => handleDueDateChange(task.id, "")}>
+                                    Clear date
+                                  </Button>
+                                )}
+                              </PopoverContent>
+                            </Popover>
                             <div className="w-24 flex gap-1 overflow-hidden">
                               {task.tags.slice(0, 2).map((t) => (
                                 <Badge key={t.tag.id} variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">{t.tag.name}</Badge>
@@ -667,7 +727,34 @@ export default function TasksPage() {
                                     {st.status === "completed" ? <CheckSquare className="h-3.5 w-3.5 text-green-600" /> : <Square className="h-3.5 w-3.5 text-muted-foreground/40" />}
                                   </button>
                                   <span className={cn("text-sm flex-1", st.status === "completed" && "line-through text-muted-foreground")}>{st.title}</span>
-                                  {st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                  {canAssign && (
+                                    <Popover>
+                                      <PopoverTrigger className="cursor-pointer shrink-0">
+                                        {st.assigneeName ? (
+                                          <Avatar className="h-5 w-5 hover:ring-2 hover:ring-primary/50 transition-all"><AvatarFallback className="text-[8px]">{getInitials(st.assigneeName)}</AvatarFallback></Avatar>
+                                        ) : (
+                                          <div className="h-5 w-5 rounded-full border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors" />
+                                        )}
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-48 p-1" align="end">
+                                        <div className="max-h-48 overflow-y-auto">
+                                          {st.assigneeId && (
+                                            <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted text-muted-foreground" onClick={() => handleAssignUser(st.id, null)}>Unassign</button>
+                                          )}
+                                          {users.map((u) => (
+                                            <button key={u.id} className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted", st.assigneeId === u.id && "bg-muted font-medium")} onClick={() => handleAssignUser(st.id, u.id)}>
+                                              <Avatar className="h-5 w-5"><AvatarFallback className="text-[8px]">{getInitials(u.name)}</AvatarFallback></Avatar>
+                                              {u.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                  {!canAssign && st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                  <button className="p-0.5 rounded hover:bg-muted shrink-0" onClick={() => openTaskPanel(st.id)} title="View details">
+                                    <Eye className="h-3 w-3 text-muted-foreground" />
+                                  </button>
                                 </div>
                               ))}
                               {addingSubtaskForId === task.id && (
@@ -753,7 +840,35 @@ export default function TasksPage() {
                                     {st.status === "completed" ? <CheckSquare className="h-4 w-4 text-green-600" /> : <Square className="h-4 w-4 text-muted-foreground/40" />}
                                   </button>
                                   <span className={cn("text-sm flex-1", st.status === "completed" && "line-through text-muted-foreground")}>{st.title}</span>
-                                  {st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                  {canAssign ? (
+                                    <Popover>
+                                      <PopoverTrigger className="cursor-pointer shrink-0">
+                                        {st.assigneeName ? (
+                                          <Avatar className="h-5 w-5"><AvatarFallback className="text-[8px]">{getInitials(st.assigneeName)}</AvatarFallback></Avatar>
+                                        ) : (
+                                          <div className="h-5 w-5 rounded-full border-2 border-dashed border-muted-foreground/30" />
+                                        )}
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-48 p-1" align="end">
+                                        <div className="max-h-48 overflow-y-auto">
+                                          {st.assigneeId && (
+                                            <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted text-muted-foreground" onClick={() => handleAssignUser(st.id, null)}>Unassign</button>
+                                          )}
+                                          {users.map((u) => (
+                                            <button key={u.id} className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted", st.assigneeId === u.id && "bg-muted font-medium")} onClick={() => handleAssignUser(st.id, u.id)}>
+                                              <Avatar className="h-5 w-5"><AvatarFallback className="text-[8px]">{getInitials(u.name)}</AvatarFallback></Avatar>
+                                              {u.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  ) : (
+                                    st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>
+                                  )}
+                                  <button className="p-0.5 rounded hover:bg-muted shrink-0" onClick={() => openTaskPanel(st.id)} title="View details">
+                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </button>
                                 </div>
                               ))}
                               {addingSubtaskForId === task.id && (
