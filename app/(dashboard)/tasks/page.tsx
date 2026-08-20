@@ -83,7 +83,7 @@ type TaskItem = {
   _count: { subtasks: number; comments: number };
   subtaskTotal: number;
   subtaskCompleted: number;
-  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; position: number; locationId: string }[];
+  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; position: number; locationId: string; dueDate: string | null }[];
   position: number;
   recurrenceRule: any;
 };
@@ -752,6 +752,22 @@ export default function TasksPage() {
                                     </Popover>
                                   )}
                                   {!canAssign && st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>}
+                                  <Popover>
+                                    <PopoverTrigger className="text-xs text-muted-foreground cursor-pointer hover:text-foreground hover:underline shrink-0 w-20 text-center">
+                                      {st.dueDate ? formatDate(st.dueDate) : "—"}
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2" align="center">
+                                      <Input
+                                        type="date"
+                                        defaultValue={st.dueDate ? st.dueDate.split("T")[0] : ""}
+                                        onChange={(e) => handleDueDateChange(st.id, e.target.value)}
+                                        className="w-40"
+                                      />
+                                      {st.dueDate && (
+                                        <Button size="sm" variant="ghost" className="w-full mt-1 text-xs" onClick={() => handleDueDateChange(st.id, "")}>Clear</Button>
+                                      )}
+                                    </PopoverContent>
+                                  </Popover>
                                   <button className="p-0.5 rounded hover:bg-muted shrink-0" onClick={() => openTaskPanel(st.id)} title="View details">
                                     <Eye className="h-3 w-3 text-muted-foreground" />
                                   </button>
@@ -866,6 +882,22 @@ export default function TasksPage() {
                                   ) : (
                                     st.assigneeName && <span className="text-xs text-muted-foreground">{st.assigneeName}</span>
                                   )}
+                                  <Popover>
+                                    <PopoverTrigger className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground hover:underline shrink-0">
+                                      {st.dueDate ? formatDate(st.dueDate) : "—"}
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2" align="end">
+                                      <Input
+                                        type="date"
+                                        defaultValue={st.dueDate ? st.dueDate.split("T")[0] : ""}
+                                        onChange={(e) => handleDueDateChange(st.id, e.target.value)}
+                                        className="w-40"
+                                      />
+                                      {st.dueDate && (
+                                        <Button size="sm" variant="ghost" className="w-full mt-1 text-xs" onClick={() => handleDueDateChange(st.id, "")}>Clear</Button>
+                                      )}
+                                    </PopoverContent>
+                                  </Popover>
                                   <button className="p-0.5 rounded hover:bg-muted shrink-0" onClick={() => openTaskPanel(st.id)} title="View details">
                                     <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                   </button>

@@ -58,7 +58,7 @@ export async function getTasks(
     include: {
       ...TASK_INCLUDE,
       subtasks: {
-        select: { id: true, title: true, status: true, assigneeId: true, position: true, locationId: true },
+        select: { id: true, title: true, status: true, assigneeId: true, position: true, locationId: true, dueDate: true },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       },
     },
