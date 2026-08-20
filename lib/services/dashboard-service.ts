@@ -53,7 +53,7 @@ export async function getRoleDashboard(
       where: { organizationId, locationId: { in: locationIds }, status: "open", dueDate: { lt: today }, parentId: null },
     }),
     prisma.workOrder.count({
-      where: { location: { organizationId }, status: "submitted", ...locationFilter },
+      where: { location: { organizationId }, status: "pending_approval", ...locationFilter },
     }),
     prisma.complianceFailure.count({
       where: { locationId: { in: locationIds }, userId, status: "unexcused" },

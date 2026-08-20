@@ -123,22 +123,21 @@ export async function getTaskCounts(
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [open, inProgress, completedMonth, overdue] = await Promise.all([
+  const [open, completedMonth, overdue] = await Promise.all([
     prisma.task.count({ where: { ...baseWhere, status: "open" } }),
-    prisma.task.count({ where: { ...baseWhere, status: "in_progress" } }),
     prisma.task.count({
       where: { ...baseWhere, status: "completed", completedAt: { gte: monthStart } },
     }),
     prisma.task.count({
       where: {
         ...baseWhere,
-        status: { in: ["open", "in_progress"] },
+        status: "open",
         dueDate: { lt: now },
       },
     }),
   ]);
 
-  return { open, inProgress, completed: completedMonth, overdue };
+  return { open, completed: completedMonth, overdue };
 }
 
 export async function getTask(id: string, organizationId: string) {
@@ -471,7 +470,7 @@ export async function processOverdueRecurring(organizationId: string) {
       parentId: null,
       recurrenceRule: { not: Prisma.JsonNull },
       dueDate: { lt: now },
-      status: { in: ["open", "in_progress"] },
+      status: "open",
     },
     include: { tags: true },
   });

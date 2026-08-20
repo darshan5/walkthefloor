@@ -4,7 +4,7 @@ import { updateTaskStatus } from "@/lib/services/task-service";
 import { z } from "zod";
 
 const statusSchema = z.object({
-  status: z.enum(["in_progress", "completed"]),
+  status: z.enum(["open", "completed"]),
 });
 
 export const PATCH = withAuth(async (req, ctx, user) => {

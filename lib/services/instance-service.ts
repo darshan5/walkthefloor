@@ -120,7 +120,7 @@ export async function completeTask(
   }
 
   if (!isCompliant) {
-    await createCorrectiveAction(completion.id, instance, task, data.value, userId);
+    await createFailureTask(completion.id, instance, task, data.value, userId);
   }
 
   const totalRequired = instance.instanceTasks.filter((t) => t.isRequired).length;
@@ -165,7 +165,7 @@ function checkCompliance(task: any, value: any): boolean {
   }
 }
 
-async function createCorrectiveAction(
+async function createFailureTask(
   completionId: string,
   instance: any,
   task: any,
