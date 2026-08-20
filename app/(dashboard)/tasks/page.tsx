@@ -1000,6 +1000,15 @@ export default function TasksPage() {
               formatRecurrence={formatRecurrence}
               locations={locations}
               onRefresh={() => { refreshPanel(); fetchTasks(); }}
+              onDueDateChange={async (date) => {
+                await fetch(`/api/v1/tasks/${selectedTask!.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dueDate: date ? new Date(date).toISOString() : null }),
+                });
+                refreshPanel();
+                fetchTasks();
+              }}
             />
           </div>
         </>
@@ -1175,7 +1184,7 @@ function TaskPanelContent({
   onClose, onStatusChange, onComment, comment, setComment, sending,
   onSubtaskToggle, onAddSubtask, newSubtask, setNewSubtask,
   onEditMode, onEditSave, actionLoading, formatRecurrence,
-  locations, onRefresh,
+  locations, onRefresh, onDueDateChange,
 }: {
   task: TaskDetail; session: any; canAssign: boolean; canManage: boolean;
   canEditTask: boolean; isOwnerOrManager: boolean;
@@ -1189,7 +1198,9 @@ function TaskPanelContent({
   formatRecurrence: (rule: any) => string;
   locations: { id: string; name: string }[];
   onRefresh: () => void;
+  onDueDateChange?: (date: string) => void;
 }) {
+  const canEdit = canEditTask;
   const isTerminal = ["completed", "missed"].includes(task.status);
   const isAssigned = task.assigneeId != null;
   const subtasksDone = task.subtasks.filter((s) => s.status === "completed").length;
@@ -1328,7 +1339,27 @@ function TaskPanelContent({
 
       {/* Meta */}
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {task.dueDate && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Due {formatDate(task.dueDate)}</span>}
+        {canEdit ? (
+          <Popover>
+            <PopoverTrigger className="flex items-center gap-1 cursor-pointer hover:text-foreground hover:underline">
+              <Clock className="h-3 w-3" />{task.dueDate ? `Due ${formatDate(task.dueDate)}` : "Set due date"}
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="start">
+              <Input
+                type="date"
+                defaultValue={task.dueDate ? task.dueDate.split("T")[0] : ""}
+                onChange={(e) => { onDueDateChange?.(e.target.value); }}
+              />
+              {task.dueDate && (
+                <Button size="sm" variant="ghost" className="w-full mt-1 text-xs" onClick={() => onDueDateChange?.("")}>
+                  Clear date
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+        ) : task.dueDate ? (
+          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Due {formatDate(task.dueDate)}</span>
+        ) : null}
         {task.completedAt && <span>Completed {formatDate(task.completedAt)}</span>}
         <span>Created {formatDate(task.createdAt)}</span>
       </div>
