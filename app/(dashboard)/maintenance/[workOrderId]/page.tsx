@@ -90,6 +90,10 @@ export default function WorkOrderDetailPage() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [costEditOpen, setCostEditOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeForm, setCompleteForm] = useState({ actualCost: "", completionNotes: "" });
+  const [equipmentList, setEquipmentList] = useState<{ id: string; instanceName: string; equipmentType: { name: string } }[]>([]);
+  const [editingEquipment, setEditingEquipment] = useState(false);
 
   const [users, setUsers] = useState<UserOption[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -132,6 +136,9 @@ export default function WorkOrderDetailPage() {
       fetch(`/api/v1/users?locationId=${wo.location.id}`)
         .then((r) => r.json())
         .then((data) => setUsers(data?.data || []));
+      fetch(`/api/v1/equipment?locationId=${wo.location.id}`)
+        .then((r) => r.json())
+        .then((data) => setEquipmentList(data?.data || []));
     }
   }, [wo?.location.id]);
 
@@ -199,9 +206,46 @@ export default function WorkOrderDetailPage() {
     });
     setActionLoading(false);
     if (res.ok) {
-      toast.success(
-        action === "start" ? "Work started" : action === "complete" ? "Marked as completed" : "Work order cancelled"
-      );
+      toast.success(action === "start" ? "Work started" : "Work order cancelled");
+      fetchWorkOrder();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleComplete(e: React.FormEvent) {
+    e.preventDefault();
+    if (!completeForm.completionNotes.trim() || !completeForm.actualCost) return;
+    setActionLoading(true);
+    const res = await fetch(`/api/v1/work-orders/${workOrderId}/complete`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        completionNotes: completeForm.completionNotes,
+        actualCost: parseFloat(completeForm.actualCost),
+      }),
+    });
+    setActionLoading(false);
+    if (res.ok) {
+      toast.success("Work order completed");
+      setCompleteOpen(false);
+      fetchWorkOrder();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  async function handleEquipmentChange(equipmentId: string | null) {
+    const res = await fetch(`/api/v1/work-orders/${workOrderId}/equipment`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ equipmentId }),
+    });
+    setEditingEquipment(false);
+    if (res.ok) {
+      toast.success("Equipment updated");
       fetchWorkOrder();
     } else {
       const { error } = await res.json();
@@ -304,7 +348,7 @@ export default function WorkOrderDetailPage() {
             </Button>
           )}
           {wo.status === "in_progress" && canManage && (
-            <Button size="sm" onClick={() => handleAction("complete")}>
+            <Button size="sm" onClick={() => { setCompleteForm({ actualCost: wo.estimatedCost?.toString() || "", completionNotes: "" }); setCompleteOpen(true); }}>
               <CheckCircle2 className="mr-1 h-4 w-4" />
               Mark Completed
             </Button>
@@ -328,15 +372,46 @@ export default function WorkOrderDetailPage() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {wo.equipment && (
-              <div>
-                <p className="text-muted-foreground">Equipment</p>
-                <p className="font-medium flex items-center gap-1">
+            <div>
+              <p className="text-muted-foreground">Equipment</p>
+              {editingEquipment && !isTerminal ? (
+                <Select
+                  value={wo.equipment?.id || "none"}
+                  onValueChange={(v) => handleEquipmentChange(v === "none" ? null : (v || null))}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue>
+                      {wo.equipment ? `${wo.equipment.equipmentType.name} - ${wo.equipment.instanceName}` : "None"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {equipmentList.map((eq) => (
+                      <SelectItem key={eq.id} value={eq.id}>
+                        {eq.equipmentType.name} - {eq.instanceName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : wo.equipment ? (
+                <p
+                  className={`font-medium flex items-center gap-1 ${canManage && !isTerminal ? "cursor-pointer hover:underline" : ""}`}
+                  onClick={() => canManage && !isTerminal && setEditingEquipment(true)}
+                >
                   <Wrench className="h-3 w-3" />
                   {wo.equipment.equipmentType.name} - {wo.equipment.instanceName}
                 </p>
-              </div>
-            )}
+              ) : canManage && !isTerminal ? (
+                <p
+                  className="text-muted-foreground cursor-pointer hover:underline"
+                  onClick={() => setEditingEquipment(true)}
+                >
+                  Click to assign equipment
+                </p>
+              ) : (
+                <p className="text-muted-foreground">—</p>
+              )}
+            </div>
             {wo.dueDate && (
               <div>
                 <p className="text-muted-foreground">Due Date</p>
@@ -695,6 +770,46 @@ export default function WorkOrderDetailPage() {
             </div>
             <Button type="submit" className="w-full" disabled={actionLoading}>
               {actionLoading ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Complete Sheet */}
+      <Sheet open={completeOpen} onOpenChange={setCompleteOpen}>
+        <SheetContent side="bottom" className="h-auto sm:max-w-lg sm:mx-auto">
+          <SheetHeader>
+            <SheetTitle>Complete Work Order</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleComplete} className="mt-4 space-y-4">
+            <div>
+              <label className="text-sm font-medium">Actual Cost *</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="$0.00"
+                value={completeForm.actualCost}
+                onChange={(e) => setCompleteForm({ ...completeForm, actualCost: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Completion Notes *</label>
+              <Textarea
+                value={completeForm.completionNotes}
+                onChange={(e) => setCompleteForm({ ...completeForm, completionNotes: e.target.value })}
+                placeholder="Describe the work done, parts used, etc."
+                rows={3}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={actionLoading || !completeForm.completionNotes.trim() || !completeForm.actualCost}
+            >
+              {actionLoading ? "Completing..." : "Complete Work Order"}
             </Button>
           </form>
         </SheetContent>

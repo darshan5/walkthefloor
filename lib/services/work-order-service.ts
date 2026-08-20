@@ -256,7 +256,16 @@ export async function startWorkOrder(id: string, organizationId: string, userId:
   return updated;
 }
 
-export async function completeWorkOrder(id: string, organizationId: string, userId: string) {
+export async function completeWorkOrder(
+  id: string,
+  organizationId: string,
+  userId: string,
+  completionNotes: string,
+  actualCost: number
+) {
+  if (!completionNotes?.trim()) throw new Error("Completion notes are required");
+  if (actualCost == null || actualCost < 0) throw new Error("Actual cost is required");
+
   const wo = await prisma.workOrder.findFirst({
     where: { id, location: { organizationId } },
   });
@@ -267,11 +276,11 @@ export async function completeWorkOrder(id: string, organizationId: string, user
 
   const updated = await prisma.workOrder.update({
     where: { id },
-    data: { status: "completed", completedAt: new Date() },
+    data: { status: "completed", completedAt: new Date(), actualCost },
     include: WO_INCLUDE,
   });
 
-  await addSystemComment(id, userId, "Marked as completed", "completed");
+  await addSystemComment(id, userId, `Completed: ${completionNotes}\nActual cost: $${actualCost.toFixed(2)}`, "completed");
   return updated;
 }
 
@@ -307,10 +316,33 @@ export async function updateWorkOrderCost(
     where: { id, location: { organizationId } },
   });
   if (!wo) throw new Error("Work order not found");
+  if (["completed", "rejected", "cancelled"].includes(wo.status)) {
+    throw new Error("Cannot modify a closed work order");
+  }
 
   return prisma.workOrder.update({
     where: { id },
     data,
+    include: WO_INCLUDE,
+  });
+}
+
+export async function updateWorkOrderEquipment(
+  id: string,
+  organizationId: string,
+  equipmentId: string | null
+) {
+  const wo = await prisma.workOrder.findFirst({
+    where: { id, location: { organizationId } },
+  });
+  if (!wo) throw new Error("Work order not found");
+  if (["completed", "rejected", "cancelled"].includes(wo.status)) {
+    throw new Error("Cannot modify a closed work order");
+  }
+
+  return prisma.workOrder.update({
+    where: { id },
+    data: { equipmentId },
     include: WO_INCLUDE,
   });
 }
