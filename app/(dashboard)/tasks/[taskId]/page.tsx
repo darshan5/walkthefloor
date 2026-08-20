@@ -99,7 +99,7 @@ export default function TaskDetailPage() {
     setActionLoading(true);
     const res = await fetch(`/api/v1/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: s }) });
     setActionLoading(false);
-    if (res.ok) { toast.success(s === "in_progress" ? "Started" : "Completed"); fetchTask(); }
+    if (res.ok) { toast.success(s === "completed" ? "Completed" : "Reopened"); fetchTask(); }
     else { const { error } = await res.json(); toast.error(error); }
   }
 
@@ -180,8 +180,8 @@ export default function TaskDetailPage() {
       {/* Actions */}
       {!isTerminal && (
         <div className="flex gap-2 flex-wrap">
-          {task.status === "open" && <Button size="sm" onClick={() => handleStatusChange("in_progress")} disabled={actionLoading}><Play className="mr-1 h-3 w-3" />Start</Button>}
-          {task.status === "in_progress" && <Button size="sm" onClick={() => handleStatusChange("completed")} disabled={actionLoading}><CheckCircle2 className="mr-1 h-3 w-3" />Complete</Button>}
+          {task.status === "open" && <Button size="sm" onClick={() => handleStatusChange("completed")} disabled={actionLoading}><CheckCircle2 className="mr-1 h-3 w-3" />Complete</Button>}
+          {task.status === "completed" && <Button size="sm" variant="outline" onClick={() => handleStatusChange("open")} disabled={actionLoading}>Reopen</Button>}
           {canEdit && <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="mr-1 h-3 w-3" />Edit</Button>}
         </div>
       )}

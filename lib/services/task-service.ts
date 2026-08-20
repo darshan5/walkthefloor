@@ -58,7 +58,7 @@ export async function getTasks(
     include: {
       ...TASK_INCLUDE,
       subtasks: {
-        select: { id: true, title: true, status: true, assigneeId: true, position: true },
+        select: { id: true, title: true, status: true, assigneeId: true, position: true, locationId: true },
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       },
     },
@@ -354,18 +354,23 @@ export async function updateTaskStatus(
     throw new Error("Not authorized to change task status");
   }
 
-  const validTransitions: Record<string, string[]> = {
-    open: ["in_progress", "completed"],
-    in_progress: ["completed"],
-  };
+  if (task.status === "missed") {
+    throw new Error("Cannot change status of a missed task");
+  }
 
-  if (!validTransitions[task.status]?.includes(newStatus)) {
-    throw new Error(`Cannot transition from ${task.status} to ${newStatus}`);
+  if (newStatus !== "open" && newStatus !== "completed") {
+    throw new Error("Status must be open or completed");
+  }
+
+  if (task.status === newStatus) {
+    return prisma.task.findFirst({ where: { id }, include: TASK_INCLUDE });
   }
 
   const updateData: any = { status: newStatus };
   if (newStatus === "completed") {
     updateData.completedAt = new Date();
+  } else if (newStatus === "open") {
+    updateData.completedAt = null;
   }
 
   const updated = await prisma.task.update({
@@ -374,7 +379,7 @@ export async function updateTaskStatus(
     include: TASK_INCLUDE,
   });
 
-  const statusLabel = newStatus === "in_progress" ? "Started work" : "Marked as completed";
+  const statusLabel = newStatus === "completed" ? "Marked as completed" : "Reopened";
   await addSystemComment(id, userId, statusLabel, newStatus);
 
   if (newStatus === "completed" && task.recurrenceRule) {
@@ -601,4 +606,59 @@ export async function reorderTask(
   const task = await prisma.task.findFirst({ where: { id, organizationId } });
   if (!task) throw new Error("Task not found");
   return prisma.task.update({ where: { id }, data: { position } });
+}
+
+export async function cleanCompletedTasks() {
+  const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+  const result = await prisma.task.deleteMany({
+    where: { status: "completed", completedAt: { lt: cutoff }, parentId: null },
+  });
+  return result.count;
+}
+
+export async function assignTaskToLocations(
+  taskId: string,
+  organizationId: string,
+  userId: string,
+  locationIds: string[]
+) {
+  const task = await prisma.task.findFirst({ where: { id: taskId, organizationId, parentId: null } });
+  if (!task) throw new Error("Task not found");
+
+  const locations = await prisma.location.findMany({
+    where: { id: { in: locationIds }, organizationId },
+    select: { id: true, name: true },
+  });
+
+  const lastSubtask = await prisma.task.findFirst({
+    where: { parentId: taskId },
+    orderBy: { position: "desc" },
+    select: { position: true },
+  });
+  let pos = (lastSubtask?.position ?? 0) + 1;
+
+  const created = [];
+  for (const loc of locations) {
+    const existing = await prisma.task.findFirst({
+      where: { parentId: taskId, locationId: loc.id },
+    });
+    if (existing) continue;
+
+    const subtask = await prisma.task.create({
+      data: {
+        title: `${loc.name}: ${task.title}`,
+        priority: task.priority,
+        status: "open",
+        source: "manual",
+        locationId: loc.id,
+        organizationId,
+        createdById: userId,
+        parentId: taskId,
+        position: pos++,
+      },
+    });
+    created.push(subtask);
+  }
+
+  return created;
 }

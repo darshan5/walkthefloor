@@ -32,7 +32,6 @@ import {
   X,
   Send,
   Search,
-  Play,
   CheckCircle2,
   Pencil,
   Square,
@@ -40,6 +39,7 @@ import {
   MessageSquare,
   CheckSquare,
   Eye,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, formatDateTime, getInitials } from "@/lib/utils";
@@ -82,7 +82,7 @@ type TaskItem = {
   _count: { subtasks: number; comments: number };
   subtaskTotal: number;
   subtaskCompleted: number;
-  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; position: number }[];
+  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; position: number; locationId: string }[];
   position: number;
   recurrenceRule: any;
 };
@@ -91,7 +91,8 @@ type TaskDetail = TaskItem & {
   baseTitle: string | null;
   completedAt: string | null;
   completionId: string | null;
-  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null }[];
+  parentId: string | null;
+  subtasks: { id: string; title: string; status: string; assigneeId: string | null; assigneeName: string | null; locationId: string }[];
   comments: { id: string; userId: string; userName: string; content: string; statusChange: string | null; createdAt: string }[];
 };
 
@@ -331,7 +332,7 @@ export default function TasksPage() {
     });
     setActionLoading(false);
     if (res.ok) {
-      toast.success(newStatus === "in_progress" ? "Started" : "Completed");
+      toast.success(newStatus === "completed" ? "Completed" : "Reopened");
       fetchTasks();
       if (selectedTask?.id === taskId) refreshPanel();
     } else {
@@ -882,6 +883,8 @@ export default function TasksPage() {
               onEditSave={handleEditSave}
               actionLoading={actionLoading}
               formatRecurrence={formatRecurrence}
+              locations={locations}
+              onRefresh={() => { refreshPanel(); fetchTasks(); }}
             />
           </div>
         </>
@@ -1057,6 +1060,7 @@ function TaskPanelContent({
   onClose, onStatusChange, onComment, comment, setComment, sending,
   onSubtaskToggle, onAddSubtask, newSubtask, setNewSubtask,
   onEditMode, onEditSave, actionLoading, formatRecurrence,
+  locations, onRefresh,
 }: {
   task: TaskDetail; session: any; canAssign: boolean; canManage: boolean;
   canEditTask: boolean; isOwnerOrManager: boolean;
@@ -1068,6 +1072,8 @@ function TaskPanelContent({
   onAddSubtask: () => void; newSubtask: string; setNewSubtask: (s: string) => void;
   onEditMode: () => void; onEditSave: () => void; actionLoading: boolean;
   formatRecurrence: (rule: any) => string;
+  locations: { id: string; name: string }[];
+  onRefresh: () => void;
 }) {
   const isTerminal = ["completed", "missed"].includes(task.status);
   const isAssigned = task.assigneeId != null;
@@ -1175,13 +1181,13 @@ function TaskPanelContent({
           return <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", st.bg, st.text)}>{st.label}</span>;
         })()}
         {!isTerminal && task.status === "open" && (
-          <Button size="sm" variant="outline" onClick={() => onStatusChange("in_progress")} disabled={actionLoading}>
-            <Play className="mr-1 h-3 w-3" />Start
-          </Button>
-        )}
-        {!isTerminal && task.status === "in_progress" && (
           <Button size="sm" variant="outline" onClick={() => onStatusChange("completed")} disabled={actionLoading}>
             <CheckCircle2 className="mr-1 h-3 w-3" />Complete
+          </Button>
+        )}
+        {task.status === "completed" && (
+          <Button size="sm" variant="outline" onClick={() => onStatusChange("open")} disabled={actionLoading}>
+            Reopen
           </Button>
         )}
         {canEditTask && !isTerminal && (
@@ -1253,6 +1259,16 @@ function TaskPanelContent({
         )}
       </div>
 
+      {/* Assign to Locations */}
+      {canAssign && !task.parentId && (
+        <AssignToLocations
+          taskId={task.id}
+          existingSubtasks={task.subtasks}
+          locations={locations}
+          onRefresh={onRefresh}
+        />
+      )}
+
       <Separator />
 
       {/* Comments */}
@@ -1285,6 +1301,111 @@ function TaskPanelContent({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AssignToLocations({
+  taskId,
+  existingSubtasks,
+  locations,
+  onRefresh,
+}: {
+  taskId: string;
+  existingSubtasks: { id: string; locationId: string }[];
+  locations: { id: string; name: string }[];
+  onRefresh: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [assigning, setAssigning] = useState(false);
+
+  const assignedLocationIds = new Set(existingSubtasks.map((s) => s.locationId));
+
+  function toggleLoc(locId: string) {
+    if (assignedLocationIds.has(locId)) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(locId)) next.delete(locId);
+      else next.add(locId);
+      return next;
+    });
+  }
+
+  async function handleAssign() {
+    if (selected.size === 0) return;
+    setAssigning(true);
+    const res = await fetch(`/api/v1/tasks/${taskId}/assign-locations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locationIds: [...selected] }),
+    });
+    setAssigning(false);
+    if (res.ok) {
+      toast.success(`Assigned to ${selected.size} location${selected.size > 1 ? "s" : ""}`);
+      setSelected(new Set());
+      setExpanded(false);
+      onRefresh();
+    } else {
+      const { error } = await res.json();
+      toast.error(error);
+    }
+  }
+
+  if (locations.length <= 1) return null;
+
+  return (
+    <div>
+      <Separator />
+      <button
+        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline py-2"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <MapPin className="h-3.5 w-3.5" />
+        Assign to Locations
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+      </button>
+      {expanded && (
+        <div className="space-y-2 pb-2">
+          <p className="text-xs text-muted-foreground">Creates a subtask for each selected location.</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {locations.map((loc) => {
+              const alreadyAssigned = assignedLocationIds.has(loc.id);
+              const isSelected = selected.has(loc.id) || alreadyAssigned;
+              return (
+                <button
+                  key={loc.id}
+                  type="button"
+                  disabled={alreadyAssigned}
+                  onClick={() => toggleLoc(loc.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs text-left transition-colors",
+                    alreadyAssigned
+                      ? "border-green-200 bg-green-50 text-green-700 cursor-default"
+                      : isSelected
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "hover:bg-muted"
+                  )}
+                >
+                  <div className={cn(
+                    "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border",
+                    (isSelected || alreadyAssigned) ? "border-primary bg-primary text-primary-foreground" : ""
+                  )}>
+                    {(isSelected || alreadyAssigned) && <CheckCheck className="h-2.5 w-2.5" />}
+                  </div>
+                  {loc.name}
+                  {alreadyAssigned && <span className="text-[10px] text-green-600 ml-auto">assigned</span>}
+                </button>
+              );
+            })}
+          </div>
+          {selected.size > 0 && (
+            <Button size="sm" onClick={handleAssign} disabled={assigning} className="w-full">
+              {assigning ? "Assigning..." : `Assign to ${selected.size} Location${selected.size > 1 ? "s" : ""}`}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

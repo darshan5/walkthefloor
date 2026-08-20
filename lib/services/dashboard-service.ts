@@ -47,10 +47,10 @@ export async function getRoleDashboard(
       where: { location: { organizationId }, status: { in: ["new", "assigned", "in_progress"] }, ...locationFilter },
     }),
     prisma.task.count({
-      where: { organizationId, locationId: { in: locationIds }, status: { in: ["open", "in_progress"] }, priority: { in: ["HIGH", "CRITICAL"] }, parentId: null },
+      where: { organizationId, locationId: { in: locationIds }, status: "open", priority: { in: ["HIGH", "CRITICAL"] }, parentId: null },
     }),
     prisma.task.count({
-      where: { organizationId, locationId: { in: locationIds }, status: { in: ["open", "in_progress"] }, dueDate: { lt: today }, parentId: null },
+      where: { organizationId, locationId: { in: locationIds }, status: "open", dueDate: { lt: today }, parentId: null },
     }),
     prisma.workOrder.count({
       where: { location: { organizationId }, status: "submitted", ...locationFilter },

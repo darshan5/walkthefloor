@@ -42,5 +42,17 @@ export function startCronJobs() {
     }
   });
 
-  console.log("[cron] Scheduled: generate-checklists (daily midnight), flag-overdue (every 15min), guest-service-sync (daily 4am)");
+  // Clean completed tasks older than 60 days — runs daily at 3am
+  cron.schedule("0 3 * * *", async () => {
+    console.log("[cron] Cleaning old completed tasks...");
+    try {
+      const { cleanCompletedTasks } = await import("./lib/services/task-service");
+      const count = await cleanCompletedTasks();
+      console.log("[cron] Cleaned completed tasks:", count);
+    } catch (e) {
+      console.error("[cron] Clean completed tasks failed:", e);
+    }
+  });
+
+  console.log("[cron] Scheduled: generate-checklists (daily midnight), flag-overdue (every 15min), guest-service-sync (daily 4am), clean-tasks (daily 3am)");
 }
