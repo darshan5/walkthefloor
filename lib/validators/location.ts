@@ -4,6 +4,11 @@ export const createLocationSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   storeNumber: z.string().max(20).optional(),
   address: z.string().max(500).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(2).optional(),
+  zipCode: z.string().max(10).optional(),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().or(z.literal("")).optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   geoFenceRadius: z.number().int().positive().optional(),
@@ -16,7 +21,9 @@ export const createLocationSchema = z.object({
   regionId: z.string().optional(),
 });
 
-export const updateLocationSchema = createLocationSchema.partial();
+export const updateLocationSchema = createLocationSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
 
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;

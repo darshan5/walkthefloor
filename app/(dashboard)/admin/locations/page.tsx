@@ -52,6 +52,11 @@ type LocationDetail = {
   name: string;
   storeNumber: string | null;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  phone: string | null;
+  email: string | null;
   timezone: string;
   complianceStartDate: string | null;
   isActive: boolean;
@@ -78,6 +83,12 @@ export default function LocationsPage() {
   const [newName, setNewName] = useState("");
   const [newStore, setNewStore] = useState("");
   const [newTimezone, setNewTimezone] = useState("America/New_York");
+  const [newAddress, setNewAddress] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newState, setNewState] = useState("PA");
+  const [newZip, setNewZip] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [equipTypes, setEquipTypes] = useState<EquipmentType[]>([]);
   const [addEquipOpen, setAddEquipOpen] = useState(false);
@@ -89,6 +100,11 @@ export default function LocationsPage() {
   const [editName, setEditName] = useState("");
   const [editStore, setEditStore] = useState("");
   const [editAddress, setEditAddress] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editState, setEditState] = useState("");
+  const [editZip, setEditZip] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editTimezone, setEditTimezone] = useState("");
   const [editActive, setEditActive] = useState(true);
 
@@ -132,14 +148,23 @@ export default function LocationsPage() {
     const res = await fetch("/api/v1/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, storeNumber: newStore || undefined, timezone: newTimezone }),
+      body: JSON.stringify({
+        name: newName,
+        storeNumber: newStore || undefined,
+        timezone: newTimezone,
+        address: newAddress || undefined,
+        city: newCity || undefined,
+        state: newState || undefined,
+        zipCode: newZip || undefined,
+        phone: newPhone || undefined,
+        email: newEmail || undefined,
+      }),
     });
     setSaving(false);
     if (res.ok) {
       toast.success("Location created");
       setCreateOpen(false);
-      setNewName("");
-      setNewStore("");
+      setNewName(""); setNewStore(""); setNewAddress(""); setNewCity(""); setNewState("PA"); setNewZip(""); setNewPhone(""); setNewEmail("");
       const { data } = await res.json();
       fetchLocations();
       setSelectedId(data.id);
@@ -176,6 +201,11 @@ export default function LocationsPage() {
     setEditName(detail.name);
     setEditStore(detail.storeNumber || "");
     setEditAddress(detail.address || "");
+    setEditCity(detail.city || "");
+    setEditState(detail.state || "");
+    setEditZip(detail.zipCode || "");
+    setEditPhone(detail.phone || "");
+    setEditEmail(detail.email || "");
     setEditTimezone(detail.timezone);
     setEditActive(detail.isActive);
     setEditOpen(true);
@@ -191,6 +221,11 @@ export default function LocationsPage() {
         name: editName,
         storeNumber: editStore || undefined,
         address: editAddress || undefined,
+        city: editCity || undefined,
+        state: editState || undefined,
+        zipCode: editZip || undefined,
+        phone: editPhone || undefined,
+        email: editEmail || undefined,
         timezone: editTimezone,
         isActive: editActive,
       }),
@@ -365,10 +400,28 @@ export default function LocationsPage() {
 
                 <TabsContent value="location" className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="text-sm font-medium text-muted-foreground">Address</label>
-                      <p className="text-sm">{detail.address || "Not set"}</p>
+                      <p className="text-sm">
+                        {[detail.address, detail.city, detail.state && detail.zipCode ? `${detail.state} ${detail.zipCode}` : detail.state || detail.zipCode].filter(Boolean).join(", ") || "Not set"}
+                      </p>
                     </div>
+                    {(detail.phone || detail.email) && (
+                      <>
+                        {detail.phone && (
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                            <p className="text-sm">{detail.phone}</p>
+                          </div>
+                        )}
+                        {detail.email && (
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Email</label>
+                            <p className="text-sm">{detail.email}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Timezone</label>
                       <p className="text-sm">{detail.timezone}</p>
@@ -551,6 +604,34 @@ export default function LocationsPage() {
               <Input placeholder="e.g., 001" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input placeholder="Street address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">City</label>
+                <Input placeholder="City" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">State</label>
+                <Input placeholder="PA" maxLength={2} value={newState} onChange={(e) => setNewState(e.target.value.toUpperCase())} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Zip Code</label>
+                <Input placeholder="19090" value={newZip} onChange={(e) => setNewZip(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
+                <Input placeholder="215-555-1234" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" placeholder="store@example.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Timezone</label>
               <select className="w-full rounded-md border px-3 py-2 text-sm" value={newTimezone} onChange={(e) => setNewTimezone(e.target.value)}>
                 {US_TIMEZONES.map((tz) => (
@@ -633,7 +714,31 @@ export default function LocationsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Address</label>
-              <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} />
+              <Input placeholder="Street address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">City</label>
+                <Input value={editCity} onChange={(e) => setEditCity(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">State</label>
+                <Input maxLength={2} value={editState} onChange={(e) => setEditState(e.target.value.toUpperCase())} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Zip Code</label>
+                <Input value={editZip} onChange={(e) => setEditZip(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
+                <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Timezone</label>
