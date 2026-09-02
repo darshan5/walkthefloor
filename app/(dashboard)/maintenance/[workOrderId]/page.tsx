@@ -61,6 +61,8 @@ type WorkOrderDetail = {
   expenseNotes: string | null;
   invoiceUrl: string | null;
   rejectionNotes: string | null;
+  deferredDate: string | null;
+  deferredReason: string | null;
   createdAt: string;
   approvedAt: string | null;
   completedAt: string | null;
@@ -448,6 +450,13 @@ export default function WorkOrderDetailPage() {
             <div className="rounded-md border border-red-200 bg-red-50 p-3">
               <p className="text-sm font-medium text-red-700">Rejection Reason</p>
               <p className="text-sm text-red-600">{wo.rejectionNotes}</p>
+            </div>
+          )}
+          {wo.status === "deferred" && (
+            <div className="rounded-md border border-purple-200 bg-purple-50 p-3">
+              <p className="text-sm font-medium text-purple-700">Deferred</p>
+              {wo.deferredDate && <p className="text-sm text-purple-600">Expected start: {formatDate(wo.deferredDate)}</p>}
+              {wo.deferredReason && <p className="text-sm text-purple-600">{wo.deferredReason}</p>}
             </div>
           )}
         </CardContent>

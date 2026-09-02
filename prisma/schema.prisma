@@ -593,6 +593,8 @@ model WorkOrder {
   approvedAt     DateTime?
   rejectedAt     DateTime?
   rejectionNotes String?
+  deferredDate   DateTime?
+  deferredReason String?
   vendorId       String?
   vendor         Vendor?            @relation(fields: [vendorId], references: [id])
   assigneeId     String?
