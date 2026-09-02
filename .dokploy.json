@@ -1,0 +1,13 @@
+{
+  "projectId": "B0xpptyWWqy6Cddkl5hyV",
+  "applicationId": "YIzaNAFJWGSExYSRACJmx",
+  "environmentId": "orixJs9JMkVT4FIRKmv3K",
+  "postgresId": "dCqMMAKY-EIZ8bAgUc8hq",
+  "type": "application",
+  "server": "dok.shilallc.com",
+  "domain": "walkthefloor.com",
+  "port": 3000,
+  "dbHost": "postgres-generate-wireless-hard-drive-icfyje",
+  "dbName": "walkthefloor",
+  "dbUser": "walkthefloor"
+}

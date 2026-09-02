@@ -38,6 +38,11 @@ model Location {
   name                String
   storeNumber         String?
   address             String?
+  city                String?
+  state               String?
+  zipCode             String?
+  phone               String?
+  email               String?
   latitude            Float?
   longitude           Float?
   geoFenceRadius      Int?
