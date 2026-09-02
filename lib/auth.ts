@@ -40,6 +40,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           locationIds.push(user.homeLocationId);
         }
 
+        const org = await prisma.organization.findFirst({
+          where: { id: user.organizationId },
+          select: { settings: true },
+        });
+        const orgModules = (org?.settings as any)?.modules || {};
+        let appAccess = user.appAccess as string[];
+        if (Object.keys(orgModules).length > 0) {
+          appAccess = appAccess.filter((key) => {
+            if (key === "documents") return orgModules.info !== false;
+            if (key === "reports") return orgModules.checklists !== false;
+            return orgModules[key] !== false;
+          });
+        }
+
         return {
           id: user.id,
           name: user.name,
@@ -50,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           organizationId: user.organizationId,
           homeLocationId: user.homeLocationId,
           locationIds,
-          appAccess: user.appAccess as string[],
+          appAccess,
         };
       },
     }),
@@ -92,6 +106,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           data: { lastUsedAt: new Date() },
         });
 
+        const pinOrg = await prisma.organization.findFirst({
+          where: { id: user.organizationId },
+          select: { settings: true },
+        });
+        const pinOrgModules = (pinOrg?.settings as any)?.modules || {};
+        let pinAppAccess = user.appAccess as string[];
+        if (Object.keys(pinOrgModules).length > 0) {
+          pinAppAccess = pinAppAccess.filter((key) => {
+            if (key === "documents") return pinOrgModules.info !== false;
+            if (key === "reports") return pinOrgModules.checklists !== false;
+            return pinOrgModules[key] !== false;
+          });
+        }
+
         return {
           id: user.id,
           name: user.name,
@@ -102,7 +130,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           organizationId: user.organizationId,
           homeLocationId: device.locationId,
           locationIds: [device.locationId],
-          appAccess: user.appAccess as string[],
+          appAccess: pinAppAccess,
         };
       },
     }),

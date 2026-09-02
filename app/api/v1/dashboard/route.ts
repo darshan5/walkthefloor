@@ -17,4 +17,4 @@ export const GET = withAuth(async (req, _ctx, user) => {
     user.role
   );
   return apiSuccess(dashboard);
-}, PERMISSIONS.CHECKLISTS_VIEW);
+});

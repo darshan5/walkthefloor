@@ -45,6 +45,7 @@ export default function OrganizationPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [compEarly, setCompEarly] = useState("");
   const [compLate, setCompLate] = useState("");
+  const [modules, setModules] = useState({ checklists: true, tasks: true, maintenance: true, guest_service: true, info: true });
   const [infoTags, setInfoTags] = useState<{ id: string; name: string }[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [tagSaving, setTagSaving] = useState(false);
@@ -79,6 +80,14 @@ export default function OrganizationPage() {
       const comp = s.compliance || {};
       setCompEarly(comp.earlyMinutes !== undefined ? String(comp.earlyMinutes) : "");
       setCompLate(comp.lateMinutes !== undefined ? String(comp.lateMinutes) : "");
+      const mods = s.modules || {};
+      setModules({
+        checklists: mods.checklists !== false,
+        tasks: mods.tasks !== false,
+        maintenance: mods.maintenance !== false,
+        guest_service: mods.guest_service !== false,
+        info: mods.info !== false,
+      });
     }
     setLoading(false);
   }
@@ -125,7 +134,7 @@ export default function OrganizationPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: orgName,
-        settings: { general: { timezone } },
+        settings: { general: { timezone }, modules },
       }),
     });
     setSaving(false);
@@ -245,6 +254,30 @@ export default function OrganizationPage() {
                 </select>
                 <p className="text-xs text-muted-foreground">Used as the default for new locations</p>
               </div>
+              <div className="border-t pt-4 space-y-3">
+                <h3 className="text-sm font-medium">Enabled Modules</h3>
+                <p className="text-xs text-muted-foreground">Toggle modules on or off for your entire organization. Users must re-login after changes.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: "checklists", label: "Book / Checklists" },
+                    { key: "tasks", label: "Tasks" },
+                    { key: "maintenance", label: "Maintenance" },
+                    { key: "guest_service", label: "Guest Service" },
+                    { key: "info", label: "Info" },
+                  ] as const).map((mod) => (
+                    <label key={mod.key} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={modules[mod.key]}
+                        onChange={(e) => setModules({ ...modules, [mod.key]: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{mod.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <Button onClick={handleSaveGeneral} disabled={saving}>
                 {saving ? "Saving..." : "Save General Settings"}
               </Button>

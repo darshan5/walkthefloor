@@ -15,6 +15,18 @@ export async function getRoleDashboard(
     ? { locationId: { in: locationIds } }
     : {};
 
+  const org = await prisma.organization.findFirst({
+    where: { id: organizationId },
+    select: { settings: true },
+  });
+  const modules = (org?.settings as any)?.modules || {};
+  const hasChecklists = modules.checklists !== false;
+  const hasTasks = modules.tasks !== false;
+  const hasMaintenance = modules.maintenance !== false;
+  const hasGuestService = modules.guest_service !== false;
+
+  const zero = Promise.resolve(0);
+
   const [
     todayInstances,
     completedToday,
@@ -28,42 +40,44 @@ export async function getRoleDashboard(
     myFailures,
     guestNeedsResponse,
   ] = await Promise.all([
-    prisma.checklistInstance.count({
+    hasChecklists ? prisma.checklistInstance.count({
       where: { location: { organizationId }, date: { gte: today, lt: tomorrow }, ...locationFilter },
-    }),
-    prisma.checklistInstance.count({
+    }) : zero,
+    hasChecklists ? prisma.checklistInstance.count({
       where: { location: { organizationId }, date: { gte: today, lt: tomorrow }, status: "COMPLETED", ...locationFilter },
-    }),
-    prisma.checklistInstance.count({
+    }) : zero,
+    hasChecklists ? prisma.checklistInstance.count({
       where: { location: { organizationId }, date: { gte: today, lt: tomorrow }, status: "MISSED", ...locationFilter },
-    }),
-    prisma.correctiveAction.count({
+    }) : zero,
+    hasChecklists ? prisma.correctiveAction.count({
       where: { location: { organizationId }, status: "OPEN", ...locationFilter },
-    }),
-    prisma.correctiveAction.count({
+    }) : zero,
+    hasChecklists ? prisma.correctiveAction.count({
       where: { location: { organizationId }, status: "OVERDUE", ...locationFilter },
-    }),
+    }) : zero,
     prisma.complaint.count({
       where: { location: { organizationId }, status: { in: ["new", "assigned", "in_progress"] }, ...locationFilter },
     }),
-    prisma.task.count({
+    hasTasks ? prisma.task.count({
       where: { organizationId, locationId: { in: locationIds }, status: "open", priority: { in: ["HIGH", "CRITICAL"] }, parentId: null },
-    }),
-    prisma.task.count({
+    }) : zero,
+    hasTasks ? prisma.task.count({
       where: { organizationId, locationId: { in: locationIds }, status: "open", dueDate: { lt: today }, parentId: null },
-    }),
-    prisma.workOrder.count({
+    }) : zero,
+    hasMaintenance ? prisma.workOrder.count({
       where: { location: { organizationId }, status: "pending_approval", ...locationFilter },
-    }),
-    prisma.complianceFailure.count({
+    }) : zero,
+    hasChecklists ? prisma.complianceFailure.count({
       where: { locationId: { in: locationIds }, userId, status: "unexcused" },
-    }),
-    prisma.guestComplaint.count({
+    }) : zero,
+    hasGuestService ? prisma.guestComplaint.count({
       where: { organizationId, locationId: { in: locationIds }, responseText: null },
-    }),
+    }) : zero,
   ]);
 
-  const guestOsat = await getOsatTrend(organizationId, locationIds);
+  const guestOsat = hasGuestService
+    ? await getOsatTrend(organizationId, locationIds)
+    : { lastMonth: null, twoMonthsAgo: null, delta: null };
 
   const base = {
     checklists: { total: todayInstances, completed: completedToday, missed: missedToday, pending: todayInstances - completedToday - missedToday },

@@ -29,7 +29,12 @@ type Dashboard = {
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appAccess, setAppAccess] = useState<string[]>([]);
   const { selectedLocationId } = useLocation();
+
+  useEffect(() => {
+    fetch("/api/auth/session").then((r) => r.json()).then((d) => setAppAccess(d?.user?.appAccess || []));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -40,6 +45,8 @@ export default function DashboardPage() {
       .then(({ data }) => setData(data))
       .finally(() => setLoading(false));
   }, [selectedLocationId]);
+
+  const hasModule = (mod: string) => appAccess.includes(mod);
 
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
   if (!data) return null;
@@ -52,76 +59,88 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-        <Link href="/checklists">
+        {hasModule("checklists") && (
+          <Link href="/checklists">
+            <StatsCard
+              title="Today's Checklists"
+              value={`${data.checklists.completed} / ${data.checklists.total}`}
+              subtitle={data.checklists.pending > 0 ? `${data.checklists.pending} pending` : "All done"}
+              icon={ClipboardCheck}
+              variant={data.checklists.missed > 0 ? "danger" : data.checklists.pending === 0 && data.checklists.total > 0 ? "success" : "default"}
+              onClick={() => {}}
+            />
+          </Link>
+        )}
+        {hasModule("tasks") && (
+          <Link href="/tasks">
+            <StatsCard
+              title="Urgent Tasks"
+              value={data.tasks.urgent}
+              subtitle={data.tasks.overdue > 0 ? `${data.tasks.overdue} overdue` : "None overdue"}
+              icon={CheckSquare}
+              variant={data.tasks.overdue > 0 ? "danger" : data.tasks.urgent > 0 ? "warning" : "success"}
+              onClick={() => {}}
+            />
+          </Link>
+        )}
+        {hasModule("checklists") && (
           <StatsCard
-            title="Today's Checklists"
-            value={`${data.checklists.completed} / ${data.checklists.total}`}
-            subtitle={data.checklists.pending > 0 ? `${data.checklists.pending} pending` : "All done"}
-            icon={ClipboardCheck}
-            variant={data.checklists.missed > 0 ? "danger" : data.checklists.pending === 0 && data.checklists.total > 0 ? "success" : "default"}
-            onClick={() => {}}
+            title="Missed Checklists"
+            value={data.checklists.missed}
+            icon={XCircle}
+            variant={data.checklists.missed > 0 ? "danger" : "success"}
           />
-        </Link>
-        <Link href="/tasks">
-          <StatsCard
-            title="Urgent Tasks"
-            value={data.tasks.urgent}
-            subtitle={data.tasks.overdue > 0 ? `${data.tasks.overdue} overdue` : "None overdue"}
-            icon={CheckSquare}
-            variant={data.tasks.overdue > 0 ? "danger" : data.tasks.urgent > 0 ? "warning" : "success"}
-            onClick={() => {}}
-          />
-        </Link>
-        <StatsCard
-          title="Missed Checklists"
-          value={data.checklists.missed}
-          icon={XCircle}
-          variant={data.checklists.missed > 0 ? "danger" : "success"}
-        />
-        <Link href="/maintenance">
-          <StatsCard
-            title="Maintenance"
-            value={data.maintenance.pendingApproval}
-            subtitle="Pending approval"
-            icon={Wrench}
-            variant={data.maintenance.pendingApproval > 0 ? "warning" : "default"}
-            onClick={() => {}}
-          />
-        </Link>
-        <Link href="/guest-service">
-          <StatsCard
-            title="Guest Complaints"
-            value={data.guestService.needsResponse}
-            subtitle="Need response"
-            icon={MessageSquare}
-            variant={data.guestService.needsResponse > 0 ? "warning" : "success"}
-            onClick={() => {}}
-          />
-        </Link>
-        <Link href="/guest-service">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <TrendingUp className="h-4 w-4" />
-                <span className="text-sm">OSAT Score</span>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-bold">{data.guestService.osat.lastMonth ?? "—"}</span>
-                {data.guestService.osat.delta != null && (
-                  <span className={cn("flex items-center text-sm font-medium", data.guestService.osat.delta >= 0 ? "text-green-600" : "text-red-600")}>
-                    {data.guestService.osat.delta >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                    {Math.abs(data.guestService.osat.delta)}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Last month vs prior</p>
-            </CardContent>
-          </Card>
-        </Link>
+        )}
+        {hasModule("maintenance") && (
+          <Link href="/maintenance">
+            <StatsCard
+              title="Maintenance"
+              value={data.maintenance.pendingApproval}
+              subtitle="Pending approval"
+              icon={Wrench}
+              variant={data.maintenance.pendingApproval > 0 ? "warning" : "default"}
+              onClick={() => {}}
+            />
+          </Link>
+        )}
+        {hasModule("guest_service") && (
+          <Link href="/guest-service">
+            <StatsCard
+              title="Guest Complaints"
+              value={data.guestService.needsResponse}
+              subtitle="Need response"
+              icon={MessageSquare}
+              variant={data.guestService.needsResponse > 0 ? "warning" : "success"}
+              onClick={() => {}}
+            />
+          </Link>
+        )}
+        {hasModule("guest_service") && (
+          <Link href="/guest-service">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="text-sm">OSAT Score</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold">{data.guestService.osat.lastMonth ?? "—"}</span>
+                  {data.guestService.osat.delta != null && (
+                    <span className={cn("flex items-center text-sm font-medium", data.guestService.osat.delta >= 0 ? "text-green-600" : "text-red-600")}>
+                      {data.guestService.osat.delta >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {Math.abs(data.guestService.osat.delta)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Last month vs prior</p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
 
       {/* RGM: My compliance failures */}
-      {!isManager && data.myFailures != null && data.myFailures > 0 && (
+      {hasModule("checklists") && !isManager && data.myFailures != null && data.myFailures > 0 && (
         <Link href="/checklists/failures">
           <Card className="border-red-200 bg-red-50/50 cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4 flex items-center gap-3">
@@ -138,7 +157,7 @@ export default function DashboardPage() {
       )}
 
       {/* Manager: Location compliance grid */}
-      {isManager && data.locationCompliance && (
+      {hasModule("checklists") && isManager && data.locationCompliance && (
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -177,39 +196,45 @@ export default function DashboardPage() {
 
       {/* Quick links */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <Link href="/checklists/adherence">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 flex items-center gap-3">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium text-sm">Checklist Adherence</p>
-                <p className="text-xs text-muted-foreground">Location × checklist grid</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/tasks">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 flex items-center gap-3">
-              <CheckSquare className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium text-sm">Tasks</p>
-                <p className="text-xs text-muted-foreground">{data.tasks.urgent} urgent, {data.tasks.overdue} overdue</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/checklists/reports">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
-            <CardContent className="p-4 flex items-center gap-3">
-              <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium text-sm">Reports</p>
-                <p className="text-xs text-muted-foreground">Compliance reports</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        {hasModule("checklists") && (
+          <Link href="/checklists/adherence">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4 flex items-center gap-3">
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium text-sm">Checklist Adherence</p>
+                  <p className="text-xs text-muted-foreground">Location × checklist grid</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+        {hasModule("tasks") && (
+          <Link href="/tasks">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4 flex items-center gap-3">
+                <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium text-sm">Tasks</p>
+                  <p className="text-xs text-muted-foreground">{data.tasks.urgent} urgent, {data.tasks.overdue} overdue</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+        {hasModule("checklists") && (
+          <Link href="/checklists/reports">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
+              <CardContent className="p-4 flex items-center gap-3">
+                <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium text-sm">Reports</p>
+                  <p className="text-xs text-muted-foreground">Compliance reports</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
     </div>
   );
