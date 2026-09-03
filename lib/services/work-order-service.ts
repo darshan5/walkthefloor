@@ -4,7 +4,7 @@ import { createNotificationsForMany } from "@/lib/services/notification-service"
 import { sendEmail, workOrderApprovalEmail } from "@/lib/email";
 
 const WO_INCLUDE = {
-  location: { select: { id: true, name: true } },
+  location: { select: { id: true, name: true, storeNumber: true } },
   createdBy: { select: { id: true, name: true, title: true } },
   approvedBy: { select: { id: true, name: true } },
   assignee: { select: { id: true, name: true, title: true } },
