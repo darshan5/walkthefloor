@@ -51,4 +51,4 @@ COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/eng
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate && node server.js"]
+CMD ["node", "server.js"]
