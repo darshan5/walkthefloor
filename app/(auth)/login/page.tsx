@@ -28,10 +28,14 @@ export default function LoginPage() {
         redirect: "follow",
       });
 
-      if (res.ok || res.redirected) {
+      // Check if login actually worked by verifying the session
+      const sessionRes = await fetch("/api/auth/session");
+      const session = await sessionRes.json();
+
+      if (session?.user) {
         window.location.href = "/";
       } else {
-        setError("Invalid email or password");
+        setError("Invalid email or password. Please check your credentials and try again.");
       }
     } catch {
       setError("Something went wrong. Please try again.");
