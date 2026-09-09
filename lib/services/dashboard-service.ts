@@ -284,37 +284,29 @@ async function getOsatTrend(
   locationIds: string[]
 ): Promise<{ lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null }> {
   const now = new Date();
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
-  const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}`;
+  const twoMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const twoMonthsAgoKey = `${twoMonthsAgoDate.getFullYear()}-${String(twoMonthsAgoDate.getMonth() + 1).padStart(2, "0")}`;
 
-  const [lastMonthSurveys, twoMonthsAgoSurveys] = await Promise.all([
-    prisma.guestSurvey.aggregate({
-      where: {
-        organizationId,
-        locationId: { in: locationIds },
-        transactionDate: { gte: lastMonthStart, lt: lastMonthEnd },
-        osatScore: { not: null },
-      },
-      _avg: { osatScore: true },
-    }),
-    prisma.guestSurvey.aggregate({
-      where: {
-        organizationId,
-        locationId: { in: locationIds },
-        transactionDate: { gte: twoMonthsAgoStart, lt: lastMonthStart },
-        osatScore: { not: null },
-      },
-      _avg: { osatScore: true },
-    }),
-  ]);
+  const lastMonthScores = await prisma.guestMonthlyScore.findMany({
+    where: { organizationId, locationId: { in: locationIds }, reportingMonth: lastMonthKey, osat: { not: null } },
+    select: { osat: true },
+  });
 
-  const lastMonth = lastMonthSurveys._avg.osatScore
-    ? Math.round(lastMonthSurveys._avg.osatScore * 10) / 10
-    : null;
-  const twoMonthsAgo = twoMonthsAgoSurveys._avg.osatScore
-    ? Math.round(twoMonthsAgoSurveys._avg.osatScore * 10) / 10
-    : null;
+  const twoMonthsAgoScores = await prisma.guestMonthlyScore.findMany({
+    where: { organizationId, locationId: { in: locationIds }, reportingMonth: twoMonthsAgoKey, osat: { not: null } },
+    select: { osat: true },
+  });
+
+  const avg = (scores: { osat: number | null }[]) => {
+    const valid = scores.filter((s) => s.osat != null) as { osat: number }[];
+    if (valid.length === 0) return null;
+    return Math.round((valid.reduce((sum, s) => sum + s.osat, 0) / valid.length) * 10) / 10;
+  };
+
+  const lastMonth = avg(lastMonthScores);
+  const twoMonthsAgo = avg(twoMonthsAgoScores);
   const d = lastMonth != null && twoMonthsAgo != null
     ? Math.round((lastMonth - twoMonthsAgo) * 10) / 10
     : null;

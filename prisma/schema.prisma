@@ -1054,6 +1054,24 @@ model GuestComplaint {
   @@index([incidentDate])
 }
 
+model GuestMonthlyScore {
+  id                 String   @id @default(cuid())
+  storeNumber        String
+  locationId         String
+  organizationId     String
+  reportingMonth     String
+  responses          Int?
+  osat               Float?
+  ltr                Float?
+  accuracy           Float?
+  inboxClerkRecordId String
+  createdAt          DateTime @default(now())
+
+  @@unique([storeNumber, reportingMonth])
+  @@index([organizationId, locationId])
+  @@index([reportingMonth])
+}
+
 // ── TASKS ────────────────────────────────────────────
 
 model Task {

@@ -120,11 +120,53 @@ export async function syncGuestData(organizationId: string, daysBack?: number) {
       ? config.lastSyncAt.toISOString().split("T")[0]
       : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+  let scoresSynced = 0;
   let surveysSynced = 0;
   let complaintsSynced = 0;
   let unmatched = 0;
 
   try {
+    const scoreRecords = await fetchInboxClerkRecords(
+      config.inboxClerkApiKey,
+      "monthly-gxp-store-scores",
+      dateFrom
+    );
+
+    for (const record of scoreRecords) {
+      const d = record.data;
+      const locationId = storeMap.get(d.store_number);
+      if (!locationId) { unmatched++; continue; }
+      if (!d.reporting_month) continue;
+
+      await prisma.guestMonthlyScore.upsert({
+        where: {
+          storeNumber_reportingMonth: {
+            storeNumber: d.store_number,
+            reportingMonth: d.reporting_month,
+          },
+        },
+        create: {
+          storeNumber: d.store_number,
+          locationId,
+          organizationId,
+          reportingMonth: d.reporting_month,
+          responses: d.responses != null ? parseInt(String(d.responses)) : null,
+          osat: d.osat != null ? parseFloat(String(d.osat)) : null,
+          ltr: d.ltr != null ? parseFloat(String(d.ltr)) : null,
+          accuracy: d.accuracy != null ? parseFloat(String(d.accuracy)) : null,
+          inboxClerkRecordId: record.id,
+        },
+        update: {
+          locationId,
+          responses: d.responses != null ? parseInt(String(d.responses)) : null,
+          osat: d.osat != null ? parseFloat(String(d.osat)) : null,
+          ltr: d.ltr != null ? parseFloat(String(d.ltr)) : null,
+          accuracy: d.accuracy != null ? parseFloat(String(d.accuracy)) : null,
+        },
+      });
+      scoresSynced++;
+    }
+
     const surveyRecords = await fetchInboxClerkRecords(
       config.inboxClerkApiKey,
       "dunkinguestfeedbackextractor",
@@ -235,7 +277,7 @@ export async function syncGuestData(organizationId: string, daysBack?: number) {
       data: { lastSyncAt: new Date(), lastSyncError: null },
     });
 
-    return { surveysSynced, complaintsSynced, unmatched };
+    return { scoresSynced, surveysSynced, complaintsSynced, unmatched };
   } catch (e: any) {
     await prisma.guestServiceConfig.update({
       where: { organizationId },
@@ -268,55 +310,52 @@ export async function getTrends(
   filters: { locationId?: string; months?: number }
 ) {
   const monthsBack = filters.months || 6;
-  const since = new Date();
-  since.setMonth(since.getMonth() - monthsBack);
+  const now = new Date();
+  const sinceMonth = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  const sinceKey = `${sinceMonth.getFullYear()}-${String(sinceMonth.getMonth() + 1).padStart(2, "0")}`;
 
   const where: any = {
     organizationId,
-    locationId: { in: locationIds },
-    transactionDate: { gte: since },
+    locationId: filters.locationId || { in: locationIds },
+    reportingMonth: { gte: sinceKey },
   };
-  if (filters.locationId) where.locationId = filters.locationId;
 
-  const surveys = await prisma.guestSurvey.findMany({
+  const scores = await prisma.guestMonthlyScore.findMany({
     where,
-    select: {
-      transactionDate: true,
-      osatScore: true,
-      ltrScore: true,
-      locationId: true,
-    },
-    orderBy: { transactionDate: "asc" },
+    orderBy: { reportingMonth: "asc" },
   });
 
-  const monthlyMap = new Map<string, { osatSum: number; ltrSum: number; osatCount: number; ltrCount: number; total: number }>();
-  const locationMap = new Map<string, { osatSum: number; ltrSum: number; osatCount: number; ltrCount: number; total: number }>();
+  const monthlyMap = new Map<string, { osatSum: number; ltrSum: number; accSum: number; respSum: number; osatCount: number; ltrCount: number; accCount: number; respCount: number }>();
+  const locationMap = new Map<string, { osatSum: number; ltrSum: number; accSum: number; respSum: number; osatCount: number; ltrCount: number; accCount: number; respCount: number }>();
 
-  for (const s of surveys) {
-    const monthKey = `${s.transactionDate.getFullYear()}-${String(s.transactionDate.getMonth() + 1).padStart(2, "0")}`;
-    if (!monthlyMap.has(monthKey)) monthlyMap.set(monthKey, { osatSum: 0, ltrSum: 0, osatCount: 0, ltrCount: 0, total: 0 });
-    const m = monthlyMap.get(monthKey)!;
-    if (s.osatScore != null) { m.osatSum += s.osatScore; m.osatCount++; }
-    if (s.ltrScore != null) { m.ltrSum += s.ltrScore; m.ltrCount++; }
-    m.total++;
+  for (const s of scores) {
+    if (!monthlyMap.has(s.reportingMonth)) monthlyMap.set(s.reportingMonth, { osatSum: 0, ltrSum: 0, accSum: 0, respSum: 0, osatCount: 0, ltrCount: 0, accCount: 0, respCount: 0 });
+    const m = monthlyMap.get(s.reportingMonth)!;
+    if (s.osat != null) { m.osatSum += s.osat; m.osatCount++; }
+    if (s.ltr != null) { m.ltrSum += s.ltr; m.ltrCount++; }
+    if (s.accuracy != null) { m.accSum += s.accuracy; m.accCount++; }
+    if (s.responses != null) { m.respSum += s.responses; m.respCount++; }
 
-    if (!locationMap.has(s.locationId)) locationMap.set(s.locationId, { osatSum: 0, ltrSum: 0, osatCount: 0, ltrCount: 0, total: 0 });
+    if (!locationMap.has(s.locationId)) locationMap.set(s.locationId, { osatSum: 0, ltrSum: 0, accSum: 0, respSum: 0, osatCount: 0, ltrCount: 0, accCount: 0, respCount: 0 });
     const l = locationMap.get(s.locationId)!;
-    if (s.osatScore != null) { l.osatSum += s.osatScore; l.osatCount++; }
-    if (s.ltrScore != null) { l.ltrSum += s.ltrScore; l.ltrCount++; }
-    l.total++;
+    if (s.osat != null) { l.osatSum += s.osat; l.osatCount++; }
+    if (s.ltr != null) { l.ltrSum += s.ltr; l.ltrCount++; }
+    if (s.accuracy != null) { l.accSum += s.accuracy; l.accCount++; }
+    if (s.responses != null) { l.respSum += s.responses; l.respCount++; }
   }
+
+  const round1 = (n: number) => Math.round(n * 10) / 10;
 
   const monthly = Array.from(monthlyMap.entries())
     .map(([month, d]) => ({
       month,
-      avgOsat: d.osatCount > 0 ? Math.round((d.osatSum / d.osatCount) * 10) / 10 : null,
-      avgLtr: d.ltrCount > 0 ? Math.round((d.ltrSum / d.ltrCount) * 10) / 10 : null,
-      count: d.total,
+      avgOsat: d.osatCount > 0 ? round1(d.osatSum / d.osatCount) : null,
+      avgLtr: d.ltrCount > 0 ? round1(d.ltrSum / d.ltrCount) : null,
+      avgAccuracy: d.accCount > 0 ? round1(d.accSum / d.accCount) : null,
+      responses: d.respSum,
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const prevMonth = new Date(now);
   prevMonth.setMonth(prevMonth.getMonth() - 1);
@@ -333,16 +372,17 @@ export async function getTrends(
 
   return {
     summary: {
-      currentMonth: currentData || { avgOsat: null, avgLtr: null, count: 0 },
-      previousMonth: prevData || { avgOsat: null, avgLtr: null, count: 0 },
+      currentMonth: currentData || { avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
+      previousMonth: prevData || { avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
     },
     monthly,
     byLocation: Array.from(locationMap.entries()).map(([locId, d]) => ({
       locationId: locId,
       locationName: locationNameMap.get(locId) || "Unknown",
-      avgOsat: d.osatCount > 0 ? Math.round((d.osatSum / d.osatCount) * 10) / 10 : null,
-      avgLtr: d.ltrCount > 0 ? Math.round((d.ltrSum / d.ltrCount) * 10) / 10 : null,
-      count: d.total,
+      avgOsat: d.osatCount > 0 ? round1(d.osatSum / d.osatCount) : null,
+      avgLtr: d.ltrCount > 0 ? round1(d.ltrSum / d.ltrCount) : null,
+      avgAccuracy: d.accCount > 0 ? round1(d.accSum / d.accCount) : null,
+      responses: d.respSum,
     })),
   };
 }
@@ -435,6 +475,52 @@ export async function getComplaint(id: string, organizationId: string) {
   }
 
   return { ...complaint, location, respondedBy };
+}
+
+export async function getGuestComments(
+  organizationId: string,
+  locationIds: string[],
+  filters: { month?: string; locationId?: string }
+) {
+  const where: any = {
+    organizationId,
+    locationId: filters.locationId || { in: locationIds },
+    guestComment: { not: null },
+  };
+
+  if (filters.month) {
+    const [year, mon] = filters.month.split("-").map(Number);
+    const start = new Date(year, mon - 1, 1);
+    const end = new Date(year, mon, 1);
+    where.transactionDate = { gte: start, lt: end };
+  }
+
+  const surveys = await prisma.guestSurvey.findMany({
+    where,
+    select: {
+      id: true,
+      surveyId: true,
+      locationId: true,
+      transactionDate: true,
+      osatScore: true,
+      ltrScore: true,
+      guestComment: true,
+    },
+    orderBy: { transactionDate: "desc" },
+    take: 200,
+  });
+
+  const locIds = [...new Set(surveys.map((s) => s.locationId))];
+  const locations = await prisma.location.findMany({
+    where: { id: { in: locIds } },
+    select: { id: true, name: true },
+  });
+  const locMap = new Map(locations.map((l) => [l.id, l.name]));
+
+  return surveys.map((s) => ({
+    ...s,
+    locationName: locMap.get(s.locationId) || "Unknown",
+  }));
 }
 
 export async function respondToComplaint(
