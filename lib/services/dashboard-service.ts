@@ -79,6 +79,10 @@ export async function getRoleDashboard(
     ? await getOsatTrend(organizationId, locationIds)
     : { lastMonth: null, twoMonthsAgo: null, delta: null };
 
+  const ecosure = hasGuestService
+    ? await getLatestEcosureAvg(organizationId, locationIds)
+    : { avgScore: null, count: 0 };
+
   const base = {
     checklists: { total: todayInstances, completed: completedToday, missed: missedToday, pending: todayInstances - completedToday - missedToday },
     correctiveActions: { open: openCAs, overdue: overdueCAs },
@@ -86,6 +90,7 @@ export async function getRoleDashboard(
     complaints: { open: openComplaints },
     maintenance: { pendingApproval: pendingMaintenance },
     guestService: { needsResponse: guestNeedsResponse, osat: guestOsat },
+    ecosure,
   };
 
   if (role === "Multi-unit Manager" || role === "Director of Operations" || role === "Franchisee") {
@@ -277,6 +282,34 @@ export async function reviewExplanation(
       reviewNotes,
     },
   });
+}
+
+async function getLatestEcosureAvg(
+  organizationId: string,
+  locationIds: string[]
+): Promise<{ avgScore: number | null; count: number }> {
+  const evals = await prisma.ecosureEvaluation.findMany({
+    where: {
+      organizationId,
+      locationId: { in: locationIds },
+      overallScore: { not: null },
+    },
+    orderBy: { evaluationDate: "desc" },
+  });
+
+  const latestByLocation = new Map<string, number>();
+  for (const e of evals) {
+    if (!latestByLocation.has(e.locationId) && e.overallScore != null) {
+      latestByLocation.set(e.locationId, e.overallScore);
+    }
+  }
+
+  const scores = Array.from(latestByLocation.values());
+  if (scores.length === 0) return { avgScore: null, count: 0 };
+  return {
+    avgScore: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10,
+    count: scores.length,
+  };
 }
 
 async function getOsatTrend(

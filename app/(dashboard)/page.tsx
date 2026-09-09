@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ClipboardCheck, AlertTriangle, XCircle, Wrench, MessageSquare, CheckSquare,
-  MapPin, ShieldAlert, TrendingUp, ArrowUpRight, ArrowDownRight,
+  MapPin, ShieldAlert, TrendingUp, ArrowUpRight, ArrowDownRight, Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ type Dashboard = {
   complaints: { open: number };
   maintenance: { pendingApproval: number };
   guestService: { needsResponse: number; osat: { lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null } };
+  ecosure: { avgScore: number | null; count: number };
   myFailures?: number;
   locationCompliance?: { id: string; name: string; storeNumber: string | null; total: number; completed: number; percent: number }[];
   failureCounts?: Record<string, { unexcused: number; excused: number; total: number }>;
@@ -133,6 +134,33 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Last month vs prior</p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+        {hasModule("guest_service") && (
+          <Link href="/guest-service">
+            <Card className={cn(
+              "cursor-pointer hover:shadow-md transition-shadow h-full",
+              data.ecosure.avgScore != null && data.ecosure.avgScore < 90 && "border-red-200"
+            )}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Shield className="h-4 w-4" />
+                  <span className="text-sm">EcoSure</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    data.ecosure.avgScore != null && data.ecosure.avgScore >= 90 ? "text-green-600" : data.ecosure.avgScore != null ? "text-red-600" : ""
+                  )}>
+                    {data.ecosure.avgScore ?? "—"}
+                  </span>
+                  {data.ecosure.avgScore != null && <span className="text-sm text-muted-foreground">/ 100</span>}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {data.ecosure.count > 0 ? `Avg across ${data.ecosure.count} location${data.ecosure.count > 1 ? "s" : ""}` : "No evaluations yet"}
+                </p>
               </CardContent>
             </Card>
           </Link>

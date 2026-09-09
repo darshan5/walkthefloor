@@ -123,6 +123,7 @@ export async function syncGuestData(organizationId: string, daysBack?: number) {
   let scoresSynced = 0;
   let surveysSynced = 0;
   let complaintsSynced = 0;
+  let ecosureSynced = 0;
   let unmatched = 0;
 
   try {
@@ -272,12 +273,72 @@ export async function syncGuestData(organizationId: string, daysBack?: number) {
       complaintsSynced++;
     }
 
+    const ecosureRecords = await fetchInboxClerkRecords(
+      config.inboxClerkApiKey,
+      "ecosure-food-safety-evaluations",
+      dateFrom
+    );
+
+    for (const record of ecosureRecords) {
+      const d = record.data;
+      const locationId = storeMap.get(d.unit_number);
+      if (!locationId) { unmatched++; continue; }
+      if (!d.evaluation_date) continue;
+
+      const evalDate = new Date(d.evaluation_date);
+
+      await prisma.ecosureEvaluation.upsert({
+        where: {
+          unitNumber_evaluationDate: {
+            unitNumber: d.unit_number,
+            evaluationDate: evalDate,
+          },
+        },
+        create: {
+          unitNumber: d.unit_number,
+          locationId,
+          organizationId,
+          restaurantName: d.restaurant_name || null,
+          address: d.address || null,
+          city: d.city || null,
+          state: d.state || null,
+          zip: d.zip || null,
+          evaluationDate: evalDate,
+          visitNumber: d.visit_number != null ? parseInt(String(d.visit_number)) : null,
+          overallScore: d.overall_score != null ? parseFloat(String(d.overall_score)) : null,
+          imminentHealthRisk: d.imminent_health_risk || null,
+          cleaningAndSanitation: d.cleaning_and_sanitation || null,
+          employeeHealthAndHygiene: d.employee_health_and_hygiene || null,
+          timeAndTemperature: d.time_and_temperature || null,
+          goodRetailPractices: d.good_retail_practices || null,
+          pestManagement: d.pest_management || null,
+          documentation: d.documentation || null,
+          totalCounts: d.total_counts || null,
+          inboxClerkRecordId: record.id,
+        },
+        update: {
+          locationId,
+          overallScore: d.overall_score != null ? parseFloat(String(d.overall_score)) : null,
+          imminentHealthRisk: d.imminent_health_risk || null,
+          cleaningAndSanitation: d.cleaning_and_sanitation || null,
+          employeeHealthAndHygiene: d.employee_health_and_hygiene || null,
+          timeAndTemperature: d.time_and_temperature || null,
+          goodRetailPractices: d.good_retail_practices || null,
+          pestManagement: d.pest_management || null,
+          documentation: d.documentation || null,
+          totalCounts: d.total_counts || null,
+          visitNumber: d.visit_number != null ? parseInt(String(d.visit_number)) : null,
+        },
+      });
+      ecosureSynced++;
+    }
+
     await prisma.guestServiceConfig.update({
       where: { organizationId },
       data: { lastSyncAt: new Date(), lastSyncError: null },
     });
 
-    return { scoresSynced, surveysSynced, complaintsSynced, unmatched };
+    return { scoresSynced, surveysSynced, complaintsSynced, ecosureSynced, unmatched };
   } catch (e: any) {
     await prisma.guestServiceConfig.update({
       where: { organizationId },
@@ -521,6 +582,53 @@ export async function getGuestComments(
     ...s,
     locationName: locMap.get(s.locationId) || "Unknown",
   }));
+}
+
+export async function getLatestEcosureScores(
+  organizationId: string,
+  locationIds: string[]
+) {
+  const evals = await prisma.ecosureEvaluation.findMany({
+    where: {
+      organizationId,
+      locationId: { in: locationIds },
+      overallScore: { not: null },
+    },
+    orderBy: { evaluationDate: "desc" },
+  });
+
+  const latestByLocation = new Map<string, typeof evals[0]>();
+  for (const e of evals) {
+    if (!latestByLocation.has(e.locationId)) {
+      latestByLocation.set(e.locationId, e);
+    }
+  }
+
+  const locIds = Array.from(latestByLocation.keys());
+  const locations = await prisma.location.findMany({
+    where: { id: { in: locIds } },
+    select: { id: true, name: true, storeNumber: true },
+  });
+  const locMap = new Map(locations.map((l) => [l.id, l]));
+
+  const scores = Array.from(latestByLocation.values()).map((e) => {
+    const loc = locMap.get(e.locationId);
+    return {
+      locationId: e.locationId,
+      locationName: loc?.name || "Unknown",
+      storeNumber: loc?.storeNumber || e.unitNumber,
+      overallScore: e.overallScore,
+      evaluationDate: e.evaluationDate,
+      visitNumber: e.visitNumber,
+    };
+  });
+
+  const validScores = scores.filter((s) => s.overallScore != null);
+  const avgScore = validScores.length > 0
+    ? Math.round((validScores.reduce((sum, s) => sum + s.overallScore!, 0) / validScores.length) * 10) / 10
+    : null;
+
+  return { avgScore, locations: scores };
 }
 
 export async function respondToComplaint(

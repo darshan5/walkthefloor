@@ -1072,6 +1072,35 @@ model GuestMonthlyScore {
   @@index([reportingMonth])
 }
 
+model EcosureEvaluation {
+  id                       String   @id @default(cuid())
+  unitNumber               String
+  locationId               String
+  organizationId           String
+  restaurantName           String?
+  address                  String?
+  city                     String?
+  state                    String?
+  zip                      String?
+  evaluationDate           DateTime
+  visitNumber              Int?
+  overallScore             Float?
+  imminentHealthRisk       String?
+  cleaningAndSanitation    String?
+  employeeHealthAndHygiene String?
+  timeAndTemperature       String?
+  goodRetailPractices      String?
+  pestManagement           String?
+  documentation            String?
+  totalCounts              String?
+  inboxClerkRecordId       String
+  createdAt                DateTime @default(now())
+
+  @@unique([unitNumber, evaluationDate])
+  @@index([organizationId, locationId])
+  @@index([evaluationDate])
+}
+
 // ── TASKS ────────────────────────────────────────────
 
 model Task {
