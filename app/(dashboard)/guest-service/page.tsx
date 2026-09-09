@@ -40,6 +40,7 @@ type Complaint = {
 type Counts = { total: number; responded: number; needsResponse: number };
 
 type TrendSummaryMonth = {
+  month?: string | null;
   avgOsat: number | null;
   avgLtr: number | null;
   avgAccuracy: number | null;
@@ -104,7 +105,7 @@ export default function GuestServicePage() {
 
   const [trends, setTrends] = useState<TrendData | null>(null);
   const [trendsLoading, setTrendsLoading] = useState(false);
-  const [trendMonths, setTrendMonths] = useState("6");
+  const [trendMonths, setTrendMonths] = useState("1");
 
   const [comments, setComments] = useState<GuestComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -175,6 +176,12 @@ export default function GuestServicePage() {
     return Math.round((current - previous) * 10) / 10;
   }
 
+  function formatMonthKey(key: string | null | undefined) {
+    if (!key) return "";
+    const [y, m] = key.split("-");
+    return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+
   function DeltaIndicator({ current, previous }: { current: number | null; previous: number | null }) {
     const d = delta(current, previous);
     if (d == null) return null;
@@ -196,14 +203,14 @@ export default function GuestServicePage() {
 
         <div className="flex gap-2 flex-wrap">
           <div className="flex gap-1">
-            {["3", "6", "12"].map((m) => (
+            {[{ value: "1", label: "Current" }, { value: "3", label: "3mo" }, { value: "6", label: "6mo" }, { value: "12", label: "12mo" }].map((m) => (
               <Button
-                key={m}
+                key={m.value}
                 size="sm"
-                variant={trendMonths === m ? "default" : "outline"}
-                onClick={() => setTrendMonths(m)}
+                variant={trendMonths === m.value ? "default" : "outline"}
+                onClick={() => setTrendMonths(m.value)}
               >
-                {m}mo
+                {m.label}
               </Button>
             ))}
           </div>
@@ -219,6 +226,12 @@ export default function GuestServicePage() {
           </Card>
         ) : (
           <>
+            {trends.summary.currentMonth.month && (
+              <p className="text-xs text-muted-foreground">
+                {formatMonthKey(trends.summary.currentMonth.month)}
+                {trends.summary.previousMonth.month && ` vs ${formatMonthKey(trends.summary.previousMonth.month)}`}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               <Card>
                 <CardContent className="p-3">

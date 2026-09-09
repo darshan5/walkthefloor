@@ -316,30 +316,26 @@ async function getOsatTrend(
   organizationId: string,
   locationIds: string[]
 ): Promise<{ lastMonth: number | null; twoMonthsAgo: number | null; delta: number | null }> {
-  const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}`;
-  const twoMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-  const twoMonthsAgoKey = `${twoMonthsAgoDate.getFullYear()}-${String(twoMonthsAgoDate.getMonth() + 1).padStart(2, "0")}`;
-
-  const lastMonthScores = await prisma.guestMonthlyScore.findMany({
-    where: { organizationId, locationId: { in: locationIds }, reportingMonth: lastMonthKey, osat: { not: null } },
-    select: { osat: true },
+  const scores = await prisma.guestMonthlyScore.findMany({
+    where: { organizationId, locationId: { in: locationIds }, osat: { not: null } },
+    select: { osat: true, reportingMonth: true },
+    orderBy: { reportingMonth: "desc" },
   });
 
-  const twoMonthsAgoScores = await prisma.guestMonthlyScore.findMany({
-    where: { organizationId, locationId: { in: locationIds }, reportingMonth: twoMonthsAgoKey, osat: { not: null } },
-    select: { osat: true },
-  });
+  if (scores.length === 0) return { lastMonth: null, twoMonthsAgo: null, delta: null };
 
-  const avg = (scores: { osat: number | null }[]) => {
-    const valid = scores.filter((s) => s.osat != null) as { osat: number }[];
+  const months = [...new Set(scores.map((s) => s.reportingMonth))].sort().reverse();
+  const latestMonth = months[0];
+  const prevMonth = months.length > 1 ? months[1] : null;
+
+  const avg = (month: string) => {
+    const valid = scores.filter((s) => s.reportingMonth === month && s.osat != null) as { osat: number; reportingMonth: string }[];
     if (valid.length === 0) return null;
     return Math.round((valid.reduce((sum, s) => sum + s.osat, 0) / valid.length) * 10) / 10;
   };
 
-  const lastMonth = avg(lastMonthScores);
-  const twoMonthsAgo = avg(twoMonthsAgoScores);
+  const lastMonth = avg(latestMonth);
+  const twoMonthsAgo = prevMonth ? avg(prevMonth) : null;
   const d = lastMonth != null && twoMonthsAgo != null
     ? Math.round((lastMonth - twoMonthsAgo) * 10) / 10
     : null;

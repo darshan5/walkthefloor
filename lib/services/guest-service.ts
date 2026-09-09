@@ -417,13 +417,8 @@ export async function getTrends(
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const prevMonth = new Date(now);
-  prevMonth.setMonth(prevMonth.getMonth() - 1);
-  const prevMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}`;
-
-  const currentData = monthly.find((m) => m.month === currentMonthKey);
-  const prevData = monthly.find((m) => m.month === prevMonthKey);
+  const latestData = monthly.length > 0 ? monthly[monthly.length - 1] : null;
+  const prevData = monthly.length > 1 ? monthly[monthly.length - 2] : null;
 
   const locations = await prisma.location.findMany({
     where: { id: { in: Array.from(locationMap.keys()) } },
@@ -433,8 +428,8 @@ export async function getTrends(
 
   return {
     summary: {
-      currentMonth: currentData || { avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
-      previousMonth: prevData || { avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
+      currentMonth: latestData || { month: null, avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
+      previousMonth: prevData || { month: null, avgOsat: null, avgLtr: null, avgAccuracy: null, responses: 0 },
     },
     monthly,
     byLocation: Array.from(locationMap.entries()).map(([locId, d]) => ({
