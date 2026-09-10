@@ -120,6 +120,23 @@ export const BUILT_IN_ROLES = {
   },
 } as const;
 
+const ROLE_HIERARCHY: Record<string, number> = {
+  "Franchisee": 100,
+  "Director of Operations": 90,
+  "Multi-unit Manager": 70,
+  "Restaurant General Manager": 50,
+  "Maintenance": 30,
+  "Team Member": 10,
+};
+
+export function getRoleLevel(roleName: string): number {
+  return ROLE_HIERARCHY[roleName] ?? 0;
+}
+
+export function canManageRole(actorRole: string, targetRole: string): boolean {
+  return getRoleLevel(actorRole) > getRoleLevel(targetRole);
+}
+
 export function hasPermission(userPermissions: string[], required: string): boolean {
   return userPermissions.includes(required);
 }

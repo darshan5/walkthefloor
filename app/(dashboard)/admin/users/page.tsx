@@ -12,7 +12,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, MapPin, UserX, Pencil, Check } from "lucide-react";
+import { Plus, MapPin, UserX, Pencil, Check, Key } from "lucide-react";
 import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 
@@ -58,6 +58,15 @@ export default function UsersPage() {
   const [editManagerId, setEditManagerId] = useState("");
   const [editHomeLocationId, setEditHomeLocationId] = useState("");
   const [editLocationIds, setEditLocationIds] = useState<string[]>([]);
+
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [myRole, setMyRole] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/session").then((r) => r.json()).then((d) => setMyRole(d?.user?.role || ""));
+  }, []);
 
   async function fetchAll() {
     const [uRes, rRes, lRes] = await Promise.all([
@@ -170,6 +179,35 @@ export default function UsersPage() {
     if (res.ok) {
       toast.success(`${name} deactivated`);
       fetchAll();
+    }
+  }
+
+  const ROLE_LEVELS: Record<string, number> = {
+    "Franchisee": 100, "Director of Operations": 90, "Multi-unit Manager": 70,
+    "Restaurant General Manager": 50, "Maintenance": 30, "Team Member": 10,
+  };
+
+  function canManage(targetRoleName: string) {
+    if (myRole === "Franchisee") return true;
+    return (ROLE_LEVELS[myRole] || 0) > (ROLE_LEVELS[targetRoleName] || 0);
+  }
+
+  async function handleResetPassword() {
+    if (!resetPasswordUserId || resetPasswordValue.length < 6) return;
+    setResettingPassword(true);
+    const res = await fetch(`/api/v1/users/${resetPasswordUserId}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword: resetPasswordValue }),
+    });
+    setResettingPassword(false);
+    if (res.ok) {
+      toast.success("Password updated");
+      setResetPasswordUserId(null);
+      setResetPasswordValue("");
+    } else {
+      const { error } = await res.json();
+      toast.error(error || "Failed to reset password");
     }
   }
 
@@ -300,7 +338,7 @@ export default function UsersPage() {
                 <label className="text-sm font-medium">Role *</label>
                 <select className="w-full rounded-md border px-3 py-2 text-sm" value={newRoleId} onChange={(e) => setNewRoleId(e.target.value)}>
                   <option value="">Select role...</option>
-                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  {roles.filter((r) => myRole === "Franchisee" || canManage(r.name)).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -325,6 +363,33 @@ export default function UsersPage() {
             <DialogClose><Button variant="outline">Cancel</Button></DialogClose>
             <Button onClick={handleCreate} disabled={saving || !newName.trim() || !newRoleId}>
               {saving ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set Password Dialog */}
+      <Dialog open={!!resetPasswordUserId} onOpenChange={(open) => { if (!open) setResetPasswordUserId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set Password for {users.find((u) => u.id === resetPasswordUserId)?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Password</label>
+              <Input
+                type="password"
+                value={resetPasswordValue}
+                onChange={(e) => setResetPasswordValue(e.target.value)}
+                placeholder="Min 6 characters"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordUserId(null)}>Cancel</Button>
+            <Button onClick={handleResetPassword} disabled={resettingPassword || resetPasswordValue.length < 6}>
+              {resettingPassword ? "Saving..." : "Set Password"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -402,7 +467,16 @@ export default function UsersPage() {
               </div>
 
               {editUser.isActive && (
-                <div className="border-t pt-3">
+                <div className="border-t pt-3 flex gap-2">
+                  {canManage(editUser.role.name) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setResetPasswordUserId(editUser.id); setResetPasswordValue(""); }}
+                    >
+                      <Key className="mr-1 h-3 w-3" /> Set Password
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     size="sm"
