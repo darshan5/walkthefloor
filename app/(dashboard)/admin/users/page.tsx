@@ -303,7 +303,7 @@ export default function UsersPage() {
                       ) : <span className="text-muted-foreground text-sm">—</span>}
                     </TableCell>
                     <TableCell className="text-center">
-                      {(u._count.userLocations + (u.homeLocation ? 1 : 0)) || "—"}
+                      {u._count.userLocations || "—"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
