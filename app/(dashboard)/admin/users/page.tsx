@@ -311,17 +311,17 @@ export default function UsersPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         {u.isActive && canManage(u.role.name) && (
-                          <Button variant="ghost" size="icon" onClick={() => { setResetPasswordUserId(u.id); setResetPasswordValue(""); }} title="Set Password">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setResetPasswordUserId(u.id); setResetPasswordValue(""); }} title="Set Password">
                             <Key className="h-4 w-4" />
                           </Button>
                         )}
                         {u.isActive && canManage(u.role.name) && (
-                          <Button variant="ghost" size="icon" onClick={() => setDeactivateConfirm({ id: u.id, name: u.name })} title="Deactivate">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeactivateConfirm({ id: u.id, name: u.name }); }} title="Deactivate">
                             <UserX className="h-4 w-4" />
                           </Button>
                         )}
                         {!u.isActive && myRole === "Franchisee" && (
-                          <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => handleReactivate(u.id, u.name)}>
+                          <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={(e) => { e.stopPropagation(); handleReactivate(u.id, u.name); }}>
                             Reactivate
                           </Button>
                         )}
@@ -396,47 +396,51 @@ export default function UsersPage() {
       </Dialog>
 
       {/* Set Password Dialog */}
-      <Dialog open={!!resetPasswordUserId} onOpenChange={(open) => { if (!open) setResetPasswordUserId(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Set Password for {users.find((u) => u.id === resetPasswordUserId)?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">New Password</label>
-              <Input
-                type="password"
-                value={resetPasswordValue}
-                onChange={(e) => setResetPasswordValue(e.target.value)}
-                placeholder="Min 6 characters"
-                autoFocus
-              />
+      {resetPasswordUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setResetPasswordUserId(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-lg bg-background border shadow-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              Set Password for {users.find((u) => u.id === resetPasswordUserId)?.name}
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <Input
+                  type="password"
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  placeholder="Min 6 characters"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setResetPasswordUserId(null)}>Cancel</Button>
+                <Button onClick={handleResetPassword} disabled={resettingPassword || resetPasswordValue.length < 6}>
+                  {resettingPassword ? "Saving..." : "Set Password"}
+                </Button>
+              </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetPasswordUserId(null)}>Cancel</Button>
-            <Button onClick={handleResetPassword} disabled={resettingPassword || resetPasswordValue.length < 6}>
-              {resettingPassword ? "Saving..." : "Set Password"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Deactivate Confirmation Dialog */}
-      <Dialog open={!!deactivateConfirm} onOpenChange={(open) => { if (!open) setDeactivateConfirm(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Deactivate User</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to deactivate <strong>{deactivateConfirm?.name}</strong>? They will no longer be able to log in.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeactivateConfirm(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeactivate}>Deactivate</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {deactivateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setDeactivateConfirm(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-lg bg-background border shadow-xl p-6">
+            <h3 className="text-lg font-semibold mb-2">Deactivate User</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to deactivate <strong>{deactivateConfirm.name}</strong>? They will no longer be able to log in.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeactivateConfirm(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDeactivate}>Deactivate</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit User Dialog */}
       <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
