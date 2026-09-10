@@ -5,9 +5,11 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 const schema = z.object({
-  status: z.enum(["in_progress", "deferred", "completed"]),
+  status: z.enum(["in_progress", "deferred", "completed", "declined"]),
   deferredDate: z.string().optional(),
   deferredReason: z.string().max(500).optional(),
+  declinedReason: z.string().max(500).optional(),
+  actualCost: z.number().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -45,6 +47,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<Record<
 
   if (parsed.data.status === "completed") {
     data.completedAt = new Date();
+    if (parsed.data.actualCost != null) data.actualCost = parsed.data.actualCost;
+  }
+
+  if (parsed.data.status === "declined") {
+    data.status = "rejected";
+    data.rejectedAt = new Date();
+    data.rejectionNotes = parsed.data.declinedReason || null;
   }
 
   await prisma.workOrder.update({ where: { id }, data });
