@@ -63,6 +63,7 @@ export default function UsersPage() {
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [resettingPassword, setResettingPassword] = useState(false);
   const [myRole, setMyRole] = useState("");
+  const [deactivateConfirm, setDeactivateConfirm] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session").then((r) => r.json()).then((d) => setMyRole(d?.user?.role || ""));
@@ -173,12 +174,28 @@ export default function UsersPage() {
     fetchAll();
   }
 
-  async function handleDeactivate(userId: string, name: string) {
+  async function handleDeactivate() {
+    if (!deactivateConfirm) return;
     setEditUser(null);
-    const res = await fetch(`/api/v1/users/${userId}`, { method: "DELETE" });
+    const res = await fetch(`/api/v1/users/${deactivateConfirm.id}`, { method: "DELETE" });
     if (res.ok) {
-      toast.success(`${name} deactivated`);
+      toast.success(`${deactivateConfirm.name} deactivated`);
       fetchAll();
+    } else {
+      const { error } = await res.json();
+      toast.error(error || "Failed to deactivate");
+    }
+    setDeactivateConfirm(null);
+  }
+
+  async function handleReactivate(userId: string, name: string) {
+    const res = await fetch(`/api/v1/users/${userId}`, { method: "PUT" });
+    if (res.ok) {
+      toast.success(`${name} reactivated`);
+      fetchAll();
+    } else {
+      const { error } = await res.json();
+      toast.error(error || "Failed to reactivate");
     }
   }
 
@@ -293,9 +310,19 @@ export default function UsersPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)} title="Edit">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        {u.isActive && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeactivate(u.id, u.name)} title="Deactivate">
+                        {u.isActive && canManage(u.role.name) && (
+                          <Button variant="ghost" size="icon" onClick={() => { setResetPasswordUserId(u.id); setResetPasswordValue(""); }} title="Set Password">
+                            <Key className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {u.isActive && canManage(u.role.name) && (
+                          <Button variant="ghost" size="icon" onClick={() => setDeactivateConfirm({ id: u.id, name: u.name })} title="Deactivate">
                             <UserX className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!u.isActive && myRole === "Franchisee" && (
+                          <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => handleReactivate(u.id, u.name)}>
+                            Reactivate
                           </Button>
                         )}
                       </div>
@@ -395,6 +422,22 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Deactivate Confirmation Dialog */}
+      <Dialog open={!!deactivateConfirm} onOpenChange={(open) => { if (!open) setDeactivateConfirm(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Deactivate User</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to deactivate <strong>{deactivateConfirm?.name}</strong>? They will no longer be able to log in.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeactivateConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeactivate}>Deactivate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit User Dialog */}
       <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
         <DialogContent className="max-w-lg">
@@ -480,7 +523,7 @@ export default function UsersPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDeactivate(editUser.id, editUser.name)}
+                    onClick={() => setDeactivateConfirm({ id: editUser.id, name: editUser.name })}
                   >
                     <UserX className="mr-1 h-3 w-3" /> Deactivate User
                   </Button>
