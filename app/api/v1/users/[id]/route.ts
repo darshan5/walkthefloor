@@ -17,6 +17,20 @@ export const PATCH = withAuth(async (req, ctx, user) => {
   const parsed = updateUserSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.issues[0].message);
 
+  const target = await getUser(id, user.organizationId);
+  if (!target) return apiError("User not found", 404);
+
+  if (user.role !== "Franchisee" && !canManageRole(user.role, target.role.name)) {
+    return apiError("You cannot modify users at or above your role level", 403);
+  }
+
+  if (parsed.data.roleId && user.role !== "Franchisee") {
+    const newRole = await prisma.role.findUnique({ where: { id: parsed.data.roleId }, select: { name: true } });
+    if (newRole && !canManageRole(user.role, newRole.name)) {
+      return apiError("You cannot assign a role at or above your level", 403);
+    }
+  }
+
   try {
     const updated = await updateUser(id, user.organizationId, parsed.data);
     return apiSuccess(updated);
@@ -46,12 +60,12 @@ export const DELETE = withAuth(async (_req, ctx, user) => {
 
 export const PUT = withAuth(async (_req, ctx, user) => {
   const { id } = await ctx.params;
-  if (user.role !== "Franchisee") {
-    return apiError("Only Franchisee can reactivate users", 403);
-  }
-
-  const target = await prisma.user.findFirst({ where: { id, organizationId: user.organizationId } });
+  const target = await getUser(id, user.organizationId);
   if (!target) return apiError("User not found", 404);
+
+  if (user.role !== "Franchisee" && !canManageRole(user.role, target.role.name)) {
+    return apiError("You cannot reactivate users at or above your role level", 403);
+  }
 
   await prisma.user.update({ where: { id }, data: { isActive: true } });
   return apiSuccess({ reactivated: true });

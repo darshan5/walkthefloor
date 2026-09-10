@@ -320,7 +320,7 @@ export default function UsersPage() {
                             <UserX className="h-4 w-4" />
                           </Button>
                         )}
-                        {!u.isActive && myRole === "Franchisee" && (
+                        {!u.isActive && canManage(u.role.name) && (
                           <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={(e) => { e.stopPropagation(); handleReactivate(u.id, u.name); }}>
                             Reactivate
                           </Button>

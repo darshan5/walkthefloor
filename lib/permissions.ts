@@ -45,7 +45,7 @@ export const BUILT_IN_ROLES = {
   },
   DIRECTOR_OF_OPS: {
     name: "Director of Operations",
-    permissions: Object.values(PERMISSIONS).filter((p) => p !== PERMISSIONS.ADMIN_ORG),
+    permissions: Object.values(PERMISSIONS),
   },
   MULTI_UNIT_MANAGER: {
     name: "Multi-unit Manager",
